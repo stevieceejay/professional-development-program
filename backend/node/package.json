@@ -1,0 +1,14 @@
+{
+  "name": "pd-backend",
+  "version": "1.0.0",
+  "description": "Professional Development Program backend placeholder (Node/Express)",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^5.1.0"
+  }
+}

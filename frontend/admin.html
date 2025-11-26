@@ -21,6 +21,18 @@
   </style>
 </head>
 <body>
+  <h2>Admin</h2>
+<button id="adminBtn">Load Admin</button>
+<div id="adminResponse"></div>
+
+<script>
+document.getElementById('adminBtn').addEventListener('click', async () => {
+  const response = await fetch('http://127.0.0.1:4000/admin');
+  const data = await response.json();
+  document.getElementById('adminResponse').innerText =
+    `Admin data: ${JSON.stringify(data)}`;
+});
+</script>
   <header role="banner">
     <h1>Admin dashboard</h1>
     <nav aria-label="Primary">
