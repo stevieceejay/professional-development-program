@@ -5,9 +5,15 @@ const PORT = 4000;
 // Middleware (optional)
 app.use(express.json());
 
-// Mount routes
+
+// Serve frontend files from "public" folder
+app.use(express.static('public'));
+app.use('/api', require('./routes/server.js'));
+
+
+// Mount backend routes
 const routes = require('./routes/server.js');
-app.use('/', routes);
+app.use('/api', routes);
 
 // Start server
 app.listen(PORT, () => {

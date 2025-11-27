@@ -15,7 +15,7 @@ router.get('/admin', (req, res) => {
 });
 
 router.post('/login', (req, res) => {
-  const { username } = req.body;
+  const { username, password } = req.body;
   res.json({ route: 'login', username, status: 'login route hit' });
 });
 

@@ -1,6 +1,6 @@
 # Human–AI Professional Development Program
 
-A 12-week, rolling-enrollment curriculum that blends digital literacy, professional development, AI prompt fluency, and a spiritual philosophy of work. Includes an MVP front-end demo (Login → Dashboard → Admin) to visualize nonprofit integration and proof of service.
+A 12-week, rolling-enrollment curriculum that blends digital literacy, professional development, AI prompt fluency, and a spiritual philosophy of business. Includes an MVP front-end demo (Login → Dashboard → Admin) to visualize nonprofit integration and proof of service.
 
 ## 🌟 Philosophy
 > Business is spiritual — when your spirit is right, so is your business.  

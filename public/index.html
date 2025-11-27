@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Professional Development Demo</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 40px;
+      background: #f4f6f8;
+      color: #333;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    .section {
+      max-width: 600px;
+      margin: 20px auto;
+      padding: 20px;
+      background: #fff;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+    }
+    .section h2 {
+      margin-top: 0;
+      color: #0078d7;
+    }
+    .button-container {
+      display: flex;
+      gap: 15px;
+      margin-top: 10px;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 15px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      background-color: #0078d7;
+      color: white;
+      transition: background-color 0.3s ease;
+    }
+    button:hover {
+      background-color: #005a9e;
+    }
+    input {
+      padding: 8px;
+      font-size: 15px;
+      margin-right: 10px;
+    }
+    #output {
+      max-width: 600px;
+      margin: 20px auto;
+      padding: 20px;
+      background: #fff;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      white-space: pre-wrap;
+      font-family: Consolas, monospace;
+    }
+  </style>
+</head>
+<body>
+  <h1>Nonprofit Integration Demo</h1>
+
+  <!-- Login Section -->
+  <div class="section">
+    <h2>Login</h2>
+    <input id="username" type="text" placeholder="Enter username" />
+    <input id="password" type="password" placeholder="Enter password" />
+    <button onclick="login()">Login</button>
+  </div>
+
+  <!-- Dashboard Section -->
+  <div class="section">
+    <h2>Dashboard</h2>
+    <div class="button-container">
+      <button onclick="callRoute('/api/dashboard')">View Dashboard</button>
+    </div>
+  </div>
+
+  <!-- Admin Section -->
+  <div class="section">
+    <h2>Admin</h2>
+    <div class="button-container">
+      <button onclick="callRoute('/api/admin')">View Admin</button>
+    </div>
+  </div>
+
+  <!-- Output -->
+  <div id="output">Click a button to see results here...</div>
+
+  <script>
+    async function callRoute(path, method = 'GET', body = null) {
+      const options = { method };
+      if (body) {
+        options.headers = { 'Content-Type': 'application/json' };
+        options.body = JSON.stringify(body);
+      }
+      try {
+        const res = await fetch(path, options);
+        const contentType = res.headers.get('content-type') || '';
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error('Request failed (' + res.status + '): ' + text.slice(0, 80) + '...');
+        }
+        if (!contentType.includes('application/json')) {
+          const text = await res.text();
+          throw new Error('Expected JSON, received: ' + text.slice(0, 80) + '...');
+        }
+        const data = await res.json();
+        document.getElementById('output').textContent = JSON.stringify(data, null, 2);
+      } catch (err) {
+        document.getElementById('output').textContent = 'Error: ' + err.message;
+      }
+    }
+
+    function login() {
+      const username = document.getElementById('username').value;
+      const password = document.getElementById('password').value;
+      if (!username || !password) {
+        document.getElementById('output').textContent = 'Please enter both username and password.';
+        return;
+      }
+      callRoute('/api/login', 'POST', { username, password });
+    }
+  </script>
+</body>
+</html>
