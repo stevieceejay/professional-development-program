@@ -1,0 +1,22 @@
+const express = require('express');
+const router = express.Router();
+
+// Demo routes
+router.get('/', (req, res) => {
+  res.json({ message: 'Backend placeholder running', status: 'ok' });
+});
+
+router.get('/dashboard', (req, res) => {
+  res.json({ route: 'dashboard', data: 'Dashboard placeholder data' });
+});
+
+router.get('/admin', (req, res) => {
+  res.json({ route: 'admin', data: 'Admin placeholder data' });
+});
+
+router.post('/login', (req, res) => {
+  const { username } = req.body;
+  res.json({ route: 'login', username, status: 'login route hit' });
+});
+
+module.exports = router;
