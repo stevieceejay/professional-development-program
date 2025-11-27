@@ -1,22 +1,14 @@
 const express = require('express');
-const router = express.Router();
+const app = express();
+const routes = require('./routes'); // automatically loads routes/index.js
 
-// Demo routes
-router.get('/', (req, res) => {
-  res.json({ message: 'Backend placeholder running', status: 'ok' });
+// Middleware
+app.use(express.json());
+
+// Mount all routes under /api
+app.use('/api', routes);
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });
-
-router.get('/dashboard', (req, res) => {
-  res.json({ route: 'dashboard', data: 'Dashboard placeholder data' });
-});
-
-router.get('/admin', (req, res) => {
-  res.json({ route: 'admin', data: 'Admin placeholder data' });
-});
-
-router.post('/login', (req, res) => {
-  const { username, password } = req.body;
-  res.json({ route: 'login', username, status: 'login route hit' });
-});
-
-module.exports = router;
