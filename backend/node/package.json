@@ -1,14 +1,26 @@
 {
-  "name": "pd-backend",
+  "name": "professional-development-program",
   "version": "1.0.0",
-  "description": "Professional Development Program backend placeholder (Node/Express)",
-  "main": "server.js",
-  "type": "commonjs",
+  "description": "A 12-week, rolling-enrollment curriculum that blends digital literacy, professional development, AI prompt fluency, and a spiritual philosophy of work. Includes an MVP front-end demo (Login → Dashboard → Admin) to visualize nonprofit integration and proof of service.",
+  "main": "backend/node/server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node backend/node/server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/stevieceejay/professional-development-program.git"
+  },
+  "keywords": ["node", "express", "demo", "backend", "professional-development"],
+  "author": "Stephen",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/stevieceejay/professional-development-program/issues"
+  },
+  "homepage": "https://github.com/stevieceejay/professional-development-program#readme",
   "dependencies": {
-    "cors": "^2.8.5",
-    "express": "^5.1.0"
+    "express": "4.21.2",
+    "cors": "2.8.5"
   }
 }
