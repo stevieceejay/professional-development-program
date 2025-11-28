@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>Dashboard Demo</title>
+  <link rel="stylesheet" href="/styles.css">
   <style>
     body { font-family: Arial, sans-serif; margin: 40px; background: #f4f6f8; color: #333; }
     h1 { text-align: center; margin-bottom: 30px; }
@@ -13,9 +14,13 @@
     .section { max-width: 600px; margin: 20px auto; padding: 20px; background: #fff; border: 1px solid #ccc; border-radius: 8px; }
     .section h2 { margin-top: 0; color: #0078d7; }
     .button-container { display: flex; gap: 15px; margin-top: 10px; }
-    button { padding: 10px 20px; font-size: 15px; border: none; border-radius: 5px; cursor: pointer; background-color: #0078d7; color: white; }
+    button { padding: 10px 20px; font-size: 15px; border: none; border-radius: 5px; cursor: pointer; background-color: #0078d7; color: white; transition: background-color 0.3s ease; }
     button:hover { background-color: #005a9e; }
-    #output { max-width: 600px; margin: 20px auto; padding: 20px; background: #fff; border: 1px solid #ccc; border-radius: 5px; white-space: pre-wrap; font-family: Consolas, monospace; }
+    #output { max-width: 800px; margin: 20px auto; padding: 20px; background: #fff; border: 1px solid #ccc; border-radius: 5px; }
+    #output table { width: 100%; border-collapse: collapse; }
+    #output th, #output td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    #output th { background: #f0f4f8; color: #333; }
+    #output tr:nth-child(even) { background-color: #f9fbfd; }
   </style>
 </head>
 <body>
@@ -24,6 +29,7 @@
   <!-- Navigation Bar -->
   <nav>
     <ul>
+      <li><a href="/index.html">Home</a></li>
       <li><a href="/login.html">Login</a></li>
       <li><a href="/dashboard.html">Dashboard</a></li>
       <li><a href="/admin.html">Admin</a></li>
@@ -41,21 +47,7 @@
   <!-- Output -->
   <div id="output">Click a button to see results here...</div>
 
-  <script>
-    async function callRoute(path, method = 'GET', body = null) {
-      const options = { method };
-      if (body) {
-        options.headers = { 'Content-Type': 'application/json' };
-        options.body = JSON.stringify(body);
-      }
-      try {
-        const res = await fetch(path, options);
-        const data = await res.json();
-        document.getElementById('output').textContent = JSON.stringify(data, null, 2);
-      } catch (err) {
-        document.getElementById('output').textContent = 'Error: ' + err.message;
-      }
-    }
-  </script>
+  <!-- ✅ Shared script goes here -->
+  <script src="/script.js"></script>
 </body>
 </html>

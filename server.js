@@ -1,14 +1,24 @@
 const express = require('express');
+const path = require('path');
 const app = express();
-const routes = require('./routes'); // automatically loads routes/index.js
+const PORT = process.env.PORT || 4000;
 
-// Middleware
+// Middleware to parse JSON bodies
 app.use(express.json());
 
-// Mount all routes under /api
+// Serve static frontend files
+app.use(express.static(path.join(__dirname, 'frontend/public')));
+
+// Default route: serve homepage
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'frontend/public/index.html'));
+});
+
+// Mount backend API routes
+const routes = require('./routes/server.js');
 app.use('/api', routes);
 
-const PORT = process.env.PORT || 3000;
+// Start the server
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`✅ Server running at http://localhost:${PORT}`);
 });
