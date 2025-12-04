@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign Up | ARG Professional Development</title>
+  <style>
+    .validation-message {
+      font-size: 0.8em;
+      margin-top: 4px;
+      display: none;
+    }
+    .validation-message.success {
+      color: #4ade80;
+      display: block;
+    }
+    .validation-message.error {
+      color: #ff6b6b;
+      display: block;
+    }
+    .password-strength {
+      margin-top: 8px;
+      height: 4px;
+      background: #444;
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .strength-bar {
+      height: 100%;
+      width: 0%;
+      transition: width 0.3s ease, background-color 0.3s ease;
+    }
+    .strength-text {
+      font-size: 0.8em;
+      margin-top: 4px;
+      color: #aaa;
+    }
+    .input-group input.invalid {
+      border-color: #ff6b6b !important;
+      background: rgba(255, 107, 107, 0.1) !important;
+    }
+    .input-group input.valid {
+      border-color: #4ade80 !important;
+    }
+  </style>
+<body class="login-theme">
+  <!-- Main Content -->
+  <main class="login-container">
+    <div class="login-box">
+      <!-- Left side - Branding & Info -->
+      <div class="login-side">
+        <h3>Join ARG 🚀</h3>
+        <p><strong>Start Your Journey</strong></p>
+        <p>Create an account and unlock access to professional development courses, resources, and community designed to accelerate your growth.</p>
+        
+        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.2);">
+          <p><strong>Already have an account?</strong></p>
+          <p style="font-size: 0.9em;"><a href="signin.html" style="color: #8ab4f8; text-decoration: none;">Sign In →</a></p>
+        </div>
+      </div>
+
+      <!-- Right side - Sign Up Form -->
+      <div class="login-form">
+        <div class="login-header">
+          <img src="user-icon.svg" alt="User Icon" class="user-icon">
+          <h2>CREATE ACCOUNT</h2>
+          <p style="margin: 5px 0 0 0; color: #aaa; font-size: 0.9em;">Join our community</p>
+        </div>
+
+        <form id="signUpForm">
+          <!-- Username Field -->
+          <div class="input-group">
+            <label for="username">Username</label>
+            <input 
+              type="text" 
+              id="username" 
+              name="username" 
+              placeholder="Choose a username"
+              required
+              minlength="3"
+              maxlength="20"
+              pattern="[a-zA-Z0-9_]+"
+              title="Username can contain letters, numbers, and underscores"
+            >
+            <div class="validation-message" id="usernameMsg"></div>
+          </div>
+
+          <!-- Email Field -->
+          <div class="input-group">
+            <label for="email">Email Address</label>
+            <input 
+              type="email" 
+              id="email" 
+              name="email" 
+              placeholder="Enter your email"
+              required
+              autocomplete="email"
+            >
+            <div class="validation-message" id="emailMsg"></div>
+          </div>
+
+          <!-- Password Field -->
+          <div class="input-group">
+            <label for="password">Password</label>
+            <input 
+              type="password" 
+              id="password" 
+              name="password" 
+              placeholder="Minimum 6 characters"
+              required
+              minlength="6"
+              autocomplete="new-password"
+            >
+            <div class="password-strength">
+              <div class="strength-bar" id="strengthBar"></div>
+            </div>
+            <div class="strength-text" id="strengthText">Password strength: Weak</div>
+            <div class="validation-message" id="passwordMsg"></div>
+          </div>
+
+          <!-- Confirm Password Field -->
+          <div class="input-group">
+            <label for="confirmPassword">Confirm Password</label>
+            <input 
+              type="password" 
+              id="confirmPassword" 
+              name="confirmPassword" 
+              placeholder="Re-enter your password"
+              required
+              minlength="6"
+              autocomplete="new-password"
+            >
+            <div class="validation-message" id="confirmMsg"></div>
+          </div>
+
+          <!-- Phone Field (Optional) -->
+          <div class="input-group">
+            <label for="phone">Phone Number (Optional)</label>
+            <input 
+              type="tel" 
+              id="phone" 
+              name="phone" 
+              placeholder="Enter your phone number"
+              pattern="[0-9\-\+\(\)\s]*"
+            >
+          </div>
+
+          <!-- Company Field (Optional) -->
+          <div class="input-group">
+            <label for="company">Company (Optional)</label>
+            <input 
+              type="text" 
+              id="company" 
+              name="company" 
+              placeholder="Your company name"
+              maxlength="100"
+            >
+          </div>
+
+          <!-- Department Field (Optional) -->
+          <div class="input-group">
+            <label for="department">Department (Optional)</label>
+            <input 
+              type="text" 
+              id="department" 
+              name="department" 
+              placeholder="Your department"
+              maxlength="50"
+            >
+          </div>
+
+          <!-- Role Preference Field (Optional) -->
+          <div class="input-group">
+            <label for="rolePreference">Role/Position (Optional)</label>
+            <select 
+              id="rolePreference" 
+              name="rolePreference"
+              style="width: 100%; padding: 10px; border: none; border-radius: 4px; background: rgba(255,255,255,0.1); color: #fff; border: 1px solid rgba(255,255,255,0.2);"
+            >
+              <option value="" style="background: #333;">-- Select a role --</option>
+              <option value="Developer" style="background: #333;">Developer</option>
+              <option value="Manager" style="background: #333;">Manager</option>
+              <option value="Designer" style="background: #333;">Designer</option>
+              <option value="Data Analyst" style="background: #333;">Data Analyst</option>
+              <option value="Product Manager" style="background: #333;">Product Manager</option>
+              <option value="Other" style="background: #333;">Other</option>
+            </select>
+          </div>
+
+          <!-- Terms & Conditions -->
+          <div class="options" style="margin-bottom: 20px;">
+            <label style="width: 100%; font-size: 0.85em;">
+              <input type="checkbox" id="terms" required> 
+              I agree to the Terms & Conditions
+            </label>
+          </div>
+
+          <!-- Sign Up Button -->
+          <button type="submit" class="sign-in-btn">CREATE ACCOUNT</button>
+
+          <!-- Messages -->
+          <div id="signUpMessage"></div>
+
+          <!-- Back to Sign In Link -->
+          <p style="text-align: center; margin-top: 20px; font-size: 0.9em;">
+            <a href="signin.html" style="color: #8ab4f8; text-decoration: none;">← Back to Sign In</a>
+          </p>
+        </form>
+      </div>
+    </div>
+  </main>
+
+  <!-- Scripts -->
+  <script>
+    // Validation Helper Functions
+    const validators = {
+      username: (value) => {
+        if (!value) return { valid: false, message: 'Username is required' };
+        if (value.length < 3) return { valid: false, message: 'Username must be at least 3 characters' };
+        if (value.length > 20) return { valid: false, message: 'Username must be 20 characters or less' };
+        if (!/^[a-zA-Z0-9_]+$/.test(value)) return { valid: false, message: 'Only letters, numbers, and underscores allowed' };
+        return { valid: true, message: '✓ Username available' };
+      },
+      email: (value) => {
+        if (!value) return { valid: false, message: 'Email is required' };
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(value)) return { valid: false, message: 'Please enter a valid email' };
+        return { valid: true, message: '✓ Email format valid' };
+      },
+      password: (value) => {
+        if (!value) return { valid: false, message: 'Password is required' };
+        if (value.length < 6) return { valid: false, message: 'Password must be at least 6 characters' };
+        return { valid: true, message: '✓ Password meets requirements' };
+      },
+      confirmPassword: (password, confirmPassword) => {
+        if (!confirmPassword) return { valid: false, message: 'Please confirm your password' };
+        if (password !== confirmPassword) return { valid: false, message: 'Passwords do not match' };
+        return { valid: true, message: '✓ Passwords match' };
+      }
+    };
+
+    // Calculate password strength
+    function calculatePasswordStrength(password) {
+      let strength = 0;
+      if (password.length >= 6) strength += 20;
+      if (password.length >= 8) strength += 20;
+      if (password.length >= 12) strength += 20;
+      if (/[a-z]/.test(password)) strength += 10;
+      if (/[A-Z]/.test(password)) strength += 10;
+      if (/[0-9]/.test(password)) strength += 10;
+      if (/[^a-zA-Z0-9]/.test(password)) strength += 10;
+      
+      return Math.min(strength, 100);
+    }
+
+    // Get password strength label and color
+    function getStrengthLabel(strength) {
+      if (strength < 30) return { label: 'Weak', color: '#ff6b6b' };
+      if (strength < 60) return { label: 'Fair', color: '#ffa500' };
+      if (strength < 80) return { label: 'Good', color: '#4ade80' };
+      return { label: 'Strong', color: '#06b6d4' };
+    }
+
+    // Real-time validation
+    const usernameInput = document.getElementById('username');
+    const emailInput = document.getElementById('email');
+    const passwordInput = document.getElementById('password');
+    const confirmInput = document.getElementById('confirmPassword');
+
+    usernameInput.addEventListener('blur', function() {
+      const result = validators.username(this.value);
+      const msg = document.getElementById('usernameMsg');
+      if (result.valid) {
+        msg.className = 'validation-message success';
+        this.classList.add('valid');
+        this.classList.remove('invalid');
+      } else {
+        msg.className = 'validation-message error';
+        this.classList.add('invalid');
+        this.classList.remove('valid');
+      }
+      msg.textContent = result.message;
+    });
+
+    usernameInput.addEventListener('input', function() {
+      if (this.classList.contains('invalid')) {
+        const result = validators.username(this.value);
+        const msg = document.getElementById('usernameMsg');
+        if (result.valid) {
+          msg.className = 'validation-message success';
+          this.classList.add('valid');
+          this.classList.remove('invalid');
+        }
+        msg.textContent = result.message;
+      }
+    });
+
+    emailInput.addEventListener('blur', function() {
+      const result = validators.email(this.value);
+      const msg = document.getElementById('emailMsg');
+      if (result.valid) {
+        msg.className = 'validation-message success';
+        this.classList.add('valid');
+        this.classList.remove('invalid');
+      } else {
+        msg.className = 'validation-message error';
+        this.classList.add('invalid');
+        this.classList.remove('valid');
+      }
+      msg.textContent = result.message;
+    });
+
+    emailInput.addEventListener('input', function() {
+      if (this.classList.contains('invalid')) {
+        const result = validators.email(this.value);
+        const msg = document.getElementById('emailMsg');
+        if (result.valid) {
+          msg.className = 'validation-message success';
+          this.classList.add('valid');
+          this.classList.remove('invalid');
+        }
+        msg.textContent = result.message;
+      }
+    });
+
+    passwordInput.addEventListener('input', function() {
+      const strength = calculatePasswordStrength(this.value);
+      const { label, color } = getStrengthLabel(strength);
+      
+      const bar = document.getElementById('strengthBar');
+      const text = document.getElementById('strengthText');
+      
+      bar.style.width = strength + '%';
+      bar.style.backgroundColor = color;
+      text.textContent = `Password strength: ${label}`;
+      text.style.color = color;
+
+      // Validate on input
+      const result = validators.password(this.value);
+      const msg = document.getElementById('passwordMsg');
+      if (this.value) {
+        msg.className = 'validation-message ' + (result.valid ? 'success' : 'error');
+        msg.textContent = result.message;
+        if (result.valid) {
+          this.classList.add('valid');
+          this.classList.remove('invalid');
+        } else {
+          this.classList.add('invalid');
+          this.classList.remove('valid');
+        }
+      }
+
+      // Update confirm password validation if it has value
+      if (confirmInput.value) {
+        const confirmResult = validators.confirmPassword(this.value, confirmInput.value);
+        const confirmMsg = document.getElementById('confirmMsg');
+        if (confirmResult.valid) {
+          confirmMsg.className = 'validation-message success';
+          confirmInput.classList.add('valid');
+          confirmInput.classList.remove('invalid');
+        } else {
+          confirmMsg.className = 'validation-message error';
+          confirmInput.classList.add('invalid');
+          confirmInput.classList.remove('valid');
+        }
+        confirmMsg.textContent = confirmResult.message;
+      }
+    });
+
+    confirmInput.addEventListener('blur', function() {
+      const result = validators.confirmPassword(passwordInput.value, this.value);
+      const msg = document.getElementById('confirmMsg');
+      if (result.valid) {
+        msg.className = 'validation-message success';
+        this.classList.add('valid');
+        this.classList.remove('invalid');
+      } else {
+        msg.className = 'validation-message error';
+        this.classList.add('invalid');
+        this.classList.remove('valid');
+      }
+      msg.textContent = result.message;
+    });
+
+    confirmInput.addEventListener('input', function() {
+      const result = validators.confirmPassword(passwordInput.value, this.value);
+      const msg = document.getElementById('confirmMsg');
+      if (result.valid) {
+        msg.className = 'validation-message success';
+        this.classList.add('valid');
+        this.classList.remove('invalid');
+      } else if (this.value) {
+        msg.className = 'validation-message error';
+        this.classList.add('invalid');
+        this.classList.remove('valid');
+      } else {
+        msg.className = 'validation-message';
+      }
+      msg.textContent = result.message;
+    });
+
+    // Sign Up Form Handler
+    document.getElementById('signUpForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const username = document.getElementById('username').value.trim();
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      const confirmPassword = document.getElementById('confirmPassword').value;
+      const terms = document.getElementById('terms').checked;
+      const messageDiv = document.getElementById('signUpMessage');
+      const phone = document.getElementById('phone').value.trim();
+      const company = document.getElementById('company').value.trim();
+      const department = document.getElementById('department').value.trim();
+      const rolePreference = document.getElementById('rolePreference').value;
+
+      // Clear previous message
+      messageDiv.innerHTML = '';
+
+      // Validate all fields
+      const usernameValidation = validators.username(username);
+      const emailValidation = validators.email(email);
+      const passwordValidation = validators.password(password);
+      const confirmValidation = validators.confirmPassword(password, confirmPassword);
+
+      if (!usernameValidation.valid) {
+        messageDiv.innerHTML = '<p style="color: #ff6b6b; text-align: center;">✗ ' + usernameValidation.message + '</p>';
+        return;
+      }
+
+      if (!emailValidation.valid) {
+        messageDiv.innerHTML = '<p style="color: #ff6b6b; text-align: center;">✗ ' + emailValidation.message + '</p>';
+        return;
+      }
+
+      if (!passwordValidation.valid) {
+        messageDiv.innerHTML = '<p style="color: #ff6b6b; text-align: center;">✗ ' + passwordValidation.message + '</p>';
+        return;
+      }
+
+      if (!confirmValidation.valid) {
+        messageDiv.innerHTML = '<p style="color: #ff6b6b; text-align: center;">✗ ' + confirmValidation.message + '</p>';
+        return;
+      }
+
+      if (!terms) {
+        messageDiv.innerHTML = '<p style="color: #ff6b6b; text-align: center;">✗ You must agree to the Terms & Conditions.</p>';
+        return;
+      }
+
+      try {
+        // Show loading state
+        const btn = document.querySelector('.sign-in-btn');
+        btn.disabled = true;
+        btn.textContent = 'Creating Account...';
+
+        const res = await fetch('/api/signup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, email, password, confirmPassword, phone, company, department, rolePreference })
+        });
+
+        // Be defensive: server may return HTML on error (stack trace or redirect).
+        // Check content-type before parsing JSON and fall back to text when needed.
+        let data;
+        const contentType = (res.headers.get('content-type') || '').toLowerCase();
+        if (contentType.includes('application/json')) {
+          try {
+            data = await res.json();
+          } catch (parseErr) {
+            // Unexpected parse error, fall back to raw text
+            const txt = await res.text();
+            data = { status: 'error', message: txt || `HTTP ${res.status}` };
+          }
+        } else {
+          // Not JSON: capture text body for debugging and user-friendly message
+          const txt = await res.text();
+          data = { status: res.ok ? 'success' : 'error', message: txt || `HTTP ${res.status}` };
+        }
+
+        if (data && data.status === 'success') {
+          messageDiv.innerHTML = '<p style="color: #4ade80; text-align: center;">✓ Account created successfully! Redirecting to sign in...</p>';
+          setTimeout(() => {
+            window.location.href = 'signin.html';
+          }, 1500);
+        } else {
+          messageDiv.innerHTML = `<p style="color: #ff6b6b; text-align: center;">✗ ${data.message || 'Sign up failed. Please try again.'}</p>`;
+          // Add shake animation to login box
+          document.querySelector('.login-box').classList.add('error');
+          setTimeout(() => {
+            document.querySelector('.login-box').classList.remove('error');
+          }, 500);
+          btn.disabled = false;
+          btn.textContent = 'CREATE ACCOUNT';
+        }
+      } catch (err) {
+        messageDiv.innerHTML = `<p style="color: #ff6b6b; text-align: center;">✗ Error: ${err.message}</p>`;
+        btn.disabled = false;
+        btn.textContent = 'CREATE ACCOUNT';
+      }
+    });
+  </script>
+</body>
+</html>

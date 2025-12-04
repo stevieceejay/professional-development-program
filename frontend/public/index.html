@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Project Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <section>
+      <h1>Welcome to ARG Professional Development</h1>
+    <p><a href="signin.html">Sign In</a></p>
+    <p><a href="dashboard.html">Dashboard</a></p>
+    <p><a href="admin.html">Admin</a></p>
+  </section>
+
+  <section>
+  <!-- Navigation -->
+    <header>
+    <h1>ARG Professional Development</h1>
+    <p class="tagline">Grow your skills, adapt, and thrive 🚀</p>
+    <nav class="navbar">
+      <a href="index.html">Home</a>
+      <a href="signin.html">Sign In</a>
+      <a href="signup.html">Sign Up</a>
+      <a href="dashboard.html">Dashboard</a>
+      <a href="admin.html">Admin</a>
+    </nav>
+    
+  </section>
+  <!-- Dashboard Section -->
+  <section id="dashboard">
+    <h2>Project Dashboard</h2>
+    <p>Below are the current projects pulled live from the database.</p>
+    <div id="projectsOutput">Loading projects...</div>
+    <button onclick="loadProjects()">Reload Projects</button>
+  </section>
+
+  <!-- Admin Section -->
+  <section id="admin">
+    <h2>User Administration</h2>
+    <p>Below are the current users pulled live from the database.</p>
+    <div id="usersOutput">Loading users...</div>
+    <button onclick="loadUsers()">Reload Users</button>
+  </section>
+
+  <!-- Scripts -->
+  <script src="scripts.js"></script>
+</body>
+</html>

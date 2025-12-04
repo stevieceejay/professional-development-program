@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Login | ARG Professional Development</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="login-theme">
+  <!-- Shared Header -->
+  <header>
+  <h1>ARG Professional Development</h1>
+  <p class="tagline">Grow your skills, adapt, and thrive 🚀</p>
+  <nav class="navbar">
+    <a href="index.html">Home</a>
+    <a href="signin.html">Sign In</a>
+    <a href="signup.html">Sign Up</a>
+    <a href="dashboard.html">Dashboard</a>
+    <a href="admin.html">Admin</a>
+  </nav>
+</header>
+
+  <!-- Main Content -->
+  <main class="login-container">
+    <div class="login-box">
+      <!-- Left side -->
+      <div class="login-side">
+        <h3>Grow Your Skills 📚</h3>
+        <p>Professional development starts here.<br>
+        Learn, adapt, and thrive with every login.</p>
+      </div>
+
+      <!-- Right side -->
+      <section>
+        <div class="login-form">
+          <div class="login-header">
+            <img src="user-icon.png" alt="User Icon" class="user-icon">
+            <h2>USER LOGIN</h2>
+          </div>
+          <form id="loginForm">
+            <div class="input-group">
+              <label for="username">Username</label>
+              <input type="text" id="username" required>
+            </div>
+
+            <div class="input-group">
+              <label for="password">Password</label>
+              <input type="password" id="password" required>
+            </div>
+
+            <div class="options">
+              <label><input type="checkbox"> Remember me</label>
+              <a href="#">Forgot password?</a>
+            </div>
+
+            <p style="text-align:center; margin-top:10px;">
+              <a href="index.html">← Back to Home</a>
+            </p>
+
+            <button type="submit">LOGIN</button>
+            <div id="loginMessage"></div>
+          </form>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- Shared Footer -->
+  <footer>
+    <p>&copy; 2025 ARG Professional Development</p>
+  </footer>
+
+  <!-- Scripts -->
+  <script>
+    document.getElementById('loginForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const username = document.getElementById('username').value;
+      const password = document.getElementById('password').value;
+
+      try {
+        const res = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+        const data = await res.json();
+
+        if (data.status === 'success') {
+          window.location.href = data.user.role === 'Admin' ? 'admin.html' : 'dashboard.html';
+        } else {
+          document.getElementById('loginMessage').innerHTML =
+            `<p style="color:red">${data.message}</p>`;
+        }
+      } catch (err) {
+        document.getElementById('loginMessage').innerHTML =
+          `<p style="color:red">Error: ${err.message}</p>`;
+      }
+    });
+  </script>
+  <script src="login.js"></script>
+</body>
+</html>

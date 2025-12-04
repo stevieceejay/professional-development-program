@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Admin Dashboard | ARG Professional Development</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>ARG Professional Development - Admin</h1>
+    <nav class="navbar"></nav>
+  </header>
+
+  <main class="home-container">
+    <h2>Admin Dashboard</h2>
+    <p id="adminStatus">Checking permissions...</p>
+    <div style="margin-top:12px;">
+      <a href="dashboard.html" style="margin-right:12px;">Switch to User Dashboard</a>
+      <a href="admin-guide.html">Admin Guide</a>
+    </div>
+
+    <section style="margin-top:18px;">
+      <h3>Manage Users</h3>
+      <div id="usersOutput"></div>
+    </section>
+  </main>
+
+  <footer>
+    <p>&copy; 2025 ARG Professional Development</p>
+  </footer>
+
+  <script src="scripts.js"></script>
+  <script>
+    // Only allow Admin role; redirect others to their dashboard
+    (async function(){
+      try{
+        const res = await fetch('/api/session');
+        const data = await res.json();
+        const status = document.getElementById('adminStatus');
+        if (data.status === 'success' && data.data.role === 'Admin'){
+          status.textContent = `Welcome, ${data.data.username} (Admin)`;
+          // load users
+          loadUsers();
+        } else if (data.status === 'success'){
+          window.location.href = 'dashboard.html';
+        } else {
+          window.location.href = 'signin.html';
+        }
+      } catch (err){
+        console.error('Session check failed', err);
+        window.location.href = 'signin.html';
+      }
+    })();
+  </script>
+</body>
+</html>
