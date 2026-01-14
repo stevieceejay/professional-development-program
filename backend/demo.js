@@ -3,14 +3,7 @@ const router = express.Router();
 
 // Demo dashboard route (projects)
 router.get('/dashboard', (req, res) => {
-  const response = {
-    status: 'success',
-    data: [
-      { id: 1, project: 'Website Redesign', status: 'In Progress' },
-      { id: 2, project: 'Training Program', status: 'Completed' },
-      { id: 3, project: 'Community Outreach', status: 'Pending' }
-    ]
-  };
+  const response = { status: 'success', data: [] };
   console.log('📊 Dashboard route hit');
   console.log('Response:', JSON.stringify(response, null, 2));
   res.json(response);

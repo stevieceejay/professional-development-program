@@ -1,0 +1,2 @@
+New-NetFirewallRule -DisplayName "Allow ARG Dev 4000" -Direction Inbound -LocalPort 4000 -Protocol TCP -Action Allow
+New-NetFirewallRule -DisplayName "Allow ARG Dev 4000 Outbound" -Direction Outbound -RemotePort 4000 -Protocol TCP -Action Allow
