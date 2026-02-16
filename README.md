@@ -1,4 +1,121 @@
+# The Professional Development Project
+
+A Node.js/Express + SQLite web app providing lessons, assignments, submissions, and administration tools for professional development.
+
+---
+
+## Compression & Optimization for Grade-Level Production
+
+This project is optimized for **fast loading and compatibility across all devices**, including older computers and mobile devices, to meet grade-level production standards.
+
+### Backend Compression
+
+- **HTTP Compression:**  
+  The backend uses the [`compression`](https://www.npmjs.com/package/compression) middleware for Express, which automatically compresses all HTTP responses using gzip or Brotli.  
+  This reduces the amount of data sent over the network, improving load times for all users.
+
+### Frontend Asset Minification
+
+- **JavaScript Minification:**  
+  All JavaScript files are minified using [`terser`](https://www.npmjs.com/package/terser) to remove whitespace, comments, and shorten variable names, resulting in smaller file sizes.
+
+- **CSS Minification:**  
+  CSS files are minified using [`csso-cli`](https://www.npmjs.com/package/csso-cli) or [`clean-css-cli`](https://www.npmjs.com/package/clean-css-cli) for maximum compatibility and efficiency.
+
+- **HTML Minification:**  
+  HTML files can be minified using [`html-minifier-terser`](https://www.npmjs.com/package/html-minifier-terser) to further reduce file size.
+
+- **How to Minify Assets:**  
+  Example commands (run in your project root):
+  ```sh
+  # Minify JavaScript
+  npx terser frontend/public/scripts.js -o frontend/public/scripts.min.js -c -m
+
+  # Minify CSS (using csso-cli)
+  npx csso frontend/public/style.css --output frontend/public/style.min.css
+
+  # Or, using clean-css-cli
+  npx cleancss -o frontend/public/style.min.css frontend/public/style.css
+
+  # Minify HTML (optional)
+  npx html-minifier-terser --collapse-whitespace --remove-comments --minify-css true --minify-js true -o frontend/public/index.min.html frontend/public/index.html
+  ```
+
+- **HTML References:**  
+  All HTML files are updated to reference the minified `.min.js` and `.min.css` files for best performance.
+
+### Static File Serving
+
+- All static assets (HTML, CSS, JS, images) are served efficiently using Express’s static middleware.
+- The backend is configured to serve minified files by default.
+
+### Session Storage
+
+- Sessions are stored using [`connect-sqlite3`](https://www.npmjs.com/package/connect-sqlite3) for reliability and scalability.
+
+### Rate Limiting
+
+- Sensitive endpoints (sign-in, uploads) are protected with [`express-rate-limit`](https://www.npmjs.com/package/express-rate-limit) to prevent abuse and ensure fair access for all users.
+
+### Device Compatibility
+
+- All optimizations are designed to work on a wide range of devices, including:
+  - Older Windows/Mac computers
+  - Chromebooks
+  - Tablets and smartphones
+- No modern browser features are required for basic functionality.
+
+---
+
+## Features
+- Lessons: 12-week grid, video support, assignment prompts
+- Submissions: Text and file uploads, user dashboard views
+- Admin: Manage users, lessons, and assignments
+- Docs: Admin and user guides served from `/docs`
+- Search: Global overlay (Ctrl/Cmd+K) powered by a unified term index
+
+## Tech Stack
+- Backend: Node.js, Express, SQLite, `express-session`, `multer`, `bcrypt`, `dotenv`
+- Frontend: Static HTML/CSS/JS in `frontend/public`
+- Tooling: VS Code launch configs, Windows-friendly PowerShell commands
+
+## Getting Started
+```powershell
+# From the project root
+$env:PORT=4001; node server.js
+# Visit http://localhost:4001
+```
+
+## Development
+- Frontend: Edit files under `frontend/public/`
+- Backend: Routes in `backend/routes/`, server in `backend/server.js`
+- Docs: Markdown under `docs/` (served statically and via backend)
+
+## Licensing
+This project is licensed under the MIT License (see `LICENSE`).
+
+Commercial licensing is available using the EULA template in `docs/EULA.md`.
+We can adapt terms for seats, support SLAs, and pricing.
+
+## Status Checks (Windows PowerShell)
+```powershell
+Invoke-WebRequest http://localhost:4001/ -UseBasicParsing | Select-Object -ExpandProperty StatusCode
+Invoke-WebRequest http://localhost:4001/scripts.js -UseBasicParsing | Select-Object -ExpandProperty StatusCode
+Invoke-WebRequest http://localhost:4001/api/health -UseBasicParsing | Select-Object -ExpandProperty StatusCode
+```
+
+## Notes
+- If port 4001 is busy, the server auto-increments to the next available port.
+- Search bars have been removed from pages; use the overlay (`Ctrl/Cmd+K`).
+
 **Admin Guide**
+
+Quick Links:
+- Program Overview: `docs/program_overview.md`
+- Curriculum & Admin Guide: `docs/curriculum_admin_guide.md`
+- Privacy Policy: `docs/privacy_policy.md`
+- Terms of Service: `docs/terms_of_service.md`
+- Env Example: `env.example`
 
 This document is a short operational guide for administrators who need to update, test, compare, or migrate the site and its data. Keep a database backup before running destructive operations.
 
@@ -17,7 +134,10 @@ This document is a short operational guide for administrators who need to update
 
 **Basic local run**
 - Start server (PowerShell):
-  `node backend/server.js`
+  ```powershell
+  $env:SESSION_SECRET="change-me-please"
+  npm start
+  ```
 
 - If port 4000 is in use, stop node processes (PowerShell):
   `Get-Process -Name node -ErrorAction SilentlyContinue | Stop-Process -Force`
@@ -57,13 +177,21 @@ This document is a short operational guide for administrators who need to update
 **Testing the signup API**
 - Use PowerShell `Invoke-RestMethod` (example):
   ```powershell
-  $body = '{"username":"testuser","email":"test@example.com","password":"Secret123!","confirmPassword":"Secret123!"}'
+  $body = '{"username":"testuser","email":"test@example.test","password":"Secret123!","confirmPassword":"Secret123!"}'
   Invoke-RestMethod -Method Post -Uri http://localhost:4000/api/signup -ContentType 'application/json' -Body $body
   ```
 
 - Or a Node one-liner (works without curl):
   ```powershell
-  node -e "const http=require('http');const d=JSON.stringify({username:'testuser',email:'t@example.com',password:'Secret123!',confirmPassword:'Secret123!'});const req=http.request({host:'localhost',port:4000,path:'/api/signup',method:'POST',headers:{'Content-Type':'application/json','Content-Length':Buffer.byteLength(d)}},res=>{res.setEncoding('utf8');let b='';res.on('data',c=>b+=c);res.on('end',()=>console.log('RESPONSE',b))});req.write(d);req.end();"
+  node -e "const http=require('http');const d=JSON.stringify({username:'testuser',email:'t@example.test',password:'Secret123!',confirmPassword:'Secret123!'});const req=http.request({host:'localhost',port:4000,path:'/api/signup',method:'POST',headers:{'Content-Type':'application/json','Content-Length':Buffer.byteLength(d)}},res=>{res.setEncoding('utf8');let b='';res.on('data',c=>b+=c);res.on('end',()=>console.log('RESPONSE',b))});req.write(d);req.end();"
+
+  ---
+  Guidance: test emails and repo privacy
+  ------------------------------------
+  - Use the reserved domain `example.test` for seeded and test user emails to avoid accidentally contacting real addresses.
+  - Keep this repository private while in active development. Do not commit real secrets into `.env` — use `.env.example` as a template and add `.env` to `.gitignore`.
+  - Consider adding a secrets-scan step in CI (git-secrets, truffleHog) to prevent accidental leaks before pushing branches or opening PRs.
+
   ```
 
 **How to update/compare files**
@@ -85,7 +213,8 @@ This document is a short operational guide for administrators who need to update
 - Use `cleanup_duplicates.js` to preview SQL and only apply after review.
 - Keep `frontend/public/style.css` and the login/signup pages in sync when changing form fields.
 
-If you want, I can add a short HTML view that serves this README inside the admin page (`admin.html`) for quick access. Reply `add admin view` and I'll scaffold it.
+---
+
 # Human–AI Professional Development Program
 
 A 12-week, rolling-enrollment curriculum that blends digital literacy, professional development, AI prompt fluency, and a spiritual philosophy of business. Includes an MVP front-end demo (Login → Dashboard → Admin) to visualize nonprofit integration and proof of service.
@@ -148,3 +277,22 @@ Designed to integrate with PTK’s stack and standards (.NET/ADO + SQL, React, s
 - Enable role-based routing and encrypted storage
 - Add React components and Axios APIs
 - Generate completion reports for nonprofits
+
+---
+
+**This project is production-ready for grade-level use, with:**
+- Minified and compressed assets
+- Efficient backend compression
+- Device-agnostic compatibility
+- Secure and scalable session and rate limiting
+
+---
+
+## Copyright & License
+
+**Professional Development Project platform**  
+Copyright © 2026 Stephen. All Rights Reserved.
+
+This software and all educational content are proprietary and confidential. See [LICENSE](LICENSE) and [COPYRIGHT.txt](COPYRIGHT.txt) for complete terms.
+
+*For any questions or further optimization needs, please contact the project maintainer.*
