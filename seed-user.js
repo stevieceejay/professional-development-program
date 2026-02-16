@@ -7,15 +7,23 @@ const dbPath = path.join(__dirname, 'backend', 'data', 'project.db');
 const db = new sqlite3.Database(dbPath);
 
 async function run() {
+  // Passwords for seeded users must be provided via environment variables.
+  // For example: set SEED_ADMIN_PASSWORD, SEED_ALICE_PASSWORD, SEED_BOB_PASSWORD, SEED_CHARLIE_PASSWORD
   const users = [
-    { username: 'admin', email: 'admin@example.test', role: 'Admin', password: 'AdminPass123!' },
-    { username: 'alice', email: 'alice@example.test', role: 'User',  password: 'UserPass123!' },
-    { username: 'bob',   email: 'bob@example.test', role: 'User',  password: 'BobPass123!' },
-    { username: 'charlie', email: 'charlie@example.test', role: 'User', password: 'CharliePass123!' }
+    { username: 'admin', email: 'admin@example.test', role: 'Admin', envPassword: 'SEED_ADMIN_PASSWORD' },
+    { username: 'alice', email: 'alice@example.test', role: 'User', envPassword: 'SEED_ALICE_PASSWORD' },
+    { username: 'bob',   email: 'bob@example.test', role: 'User', envPassword: 'SEED_BOB_PASSWORD' },
+    { username: 'charlie', email: 'charlie@example.test', role: 'User', envPassword: 'SEED_CHARLIE_PASSWORD' }
   ];
 
+  const defaultPass = process.env.SEED_DEFAULT_PASSWORD || '';
   for (const u of users) {
-    const hash = await bcrypt.hash(u.password, 10);
+    const password = process.env[u.envPassword] || defaultPass;
+    if (!password) {
+      console.error(`Missing password for seeded user: ${u.username}. Set ${u.envPassword} or SEED_DEFAULT_PASSWORD environment variable.`);
+      process.exit(1);
+    }
+    const hash = await bcrypt.hash(password, 10);
     await new Promise((resolve, reject) => {
       db.run(
         'INSERT OR REPLACE INTO users (id, username, email, role, password) VALUES ((SELECT id FROM users WHERE username = ?), ?, ?, ?, ?)',

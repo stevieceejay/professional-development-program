@@ -3,47 +3,20 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sign Up | ARG Professional Development</title>
-  <style>
-    .validation-message {
-      font-size: 0.8em;
-      margin-top: 4px;
-      display: none;
-    }
-    .validation-message.success {
-      color: #4ade80;
-      display: block;
-    }
-    .validation-message.error {
-      color: #ff6b6b;
-      display: block;
-    }
-    .password-strength {
-      margin-top: 8px;
-      height: 4px;
-      background: #444;
-      border-radius: 2px;
-      overflow: hidden;
-    }
-    .strength-bar {
-      height: 100%;
-      width: 0%;
-      transition: width 0.3s ease, background-color 0.3s ease;
-    }
-    .strength-text {
-      font-size: 0.8em;
-      margin-top: 4px;
-      color: #aaa;
-    }
-    .input-group input.invalid {
-      border-color: #ff6b6b !important;
-      background: rgba(255, 107, 107, 0.1) !important;
-    }
-    .input-group input.valid {
-      border-color: #4ade80 !important;
-    }
-  </style>
-<body class="login-theme">
+  <title>Sign Up | The Professional Development Project</title>
+  <link rel="stylesheet" href="extracted-styles.css">
+  <header>
+    <nav class="navbar">
+      <a href="index.html">Home</a>
+      <a href="signin.html">Sign In</a>
+      <a href="signup.html">Sign Up</a>
+      <a href="dashboard.html">Dashboard</a>
+      <a href="lessons.html">Lessons</a>
+      <a href="admin.html">Admin</a>
+    </nav>
+  
+  </header>
+  <body class="login-theme">
   <!-- Main Content -->
   <main class="login-container">
     <div class="login-box">
@@ -53,9 +26,9 @@
         <p><strong>Start Your Journey</strong></p>
         <p>Create an account and unlock access to professional development courses, resources, and community designed to accelerate your growth.</p>
         
-        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.2);">
+        <div class="top-divider">
           <p><strong>Already have an account?</strong></p>
-          <p style="font-size: 0.9em;"><a href="signin.html" style="color: #8ab4f8; text-decoration: none;">Sign In →</a></p>
+          <p class="small"><a class="link-primary" href="signin.html">Sign In →</a></p>
         </div>
       </div>
 
@@ -64,7 +37,7 @@
         <div class="login-header">
           <img src="user-icon.svg" alt="User Icon" class="user-icon">
           <h2>CREATE ACCOUNT</h2>
-          <p style="margin: 5px 0 0 0; color: #aaa; font-size: 0.9em;">Join our community</p>
+          <p class="muted small">Join our community</p>
         </div>
 
         <form id="signUpForm">
@@ -172,24 +145,20 @@
           <!-- Role Preference Field (Optional) -->
           <div class="input-group">
             <label for="rolePreference">Role/Position (Optional)</label>
-            <select 
-              id="rolePreference" 
-              name="rolePreference"
-              style="width: 100%; padding: 10px; border: none; border-radius: 4px; background: rgba(255,255,255,0.1); color: #fff; border: 1px solid rgba(255,255,255,0.2);"
-            >
-              <option value="" style="background: #333;">-- Select a role --</option>
-              <option value="Developer" style="background: #333;">Developer</option>
-              <option value="Manager" style="background: #333;">Manager</option>
-              <option value="Designer" style="background: #333;">Designer</option>
-              <option value="Data Analyst" style="background: #333;">Data Analyst</option>
-              <option value="Product Manager" style="background: #333;">Product Manager</option>
-              <option value="Other" style="background: #333;">Other</option>
+            <select id="rolePreference" name="rolePreference" class="role-select">
+              <option value="">-- Select a role --</option>
+              <option value="Developer">Developer</option>
+              <option value="Manager">Manager</option>
+              <option value="Designer">Designer</option>
+              <option value="Data Analyst">Data Analyst</option>
+              <option value="Product Manager">Product Manager</option>
+              <option value="Other">Other</option>
             </select>
           </div>
 
           <!-- Terms & Conditions -->
-          <div class="options" style="margin-bottom: 20px;">
-            <label style="width: 100%; font-size: 0.85em;">
+          <div class="options">
+            <label class="options-label">
               <input type="checkbox" id="terms" required> 
               I agree to the Terms & Conditions
             </label>
@@ -197,6 +166,7 @@
 
           <!-- Sign Up Button -->
           <button type="submit" class="sign-in-btn">CREATE ACCOUNT</button>
+          <div id="signUpSpinner" class="spinner"></div>
 
           <!-- Messages -->
           <div id="signUpMessage"></div>
@@ -423,27 +393,27 @@
       const confirmValidation = validators.confirmPassword(password, confirmPassword);
 
       if (!usernameValidation.valid) {
-        messageDiv.innerHTML = '<p style="color: #ff6b6b; text-align: center;">✗ ' + usernameValidation.message + '</p>';
+        messageDiv.innerHTML = '<p class="msg error">✗ ' + usernameValidation.message + '</p>';
         return;
       }
 
       if (!emailValidation.valid) {
-        messageDiv.innerHTML = '<p style="color: #ff6b6b; text-align: center;">✗ ' + emailValidation.message + '</p>';
+        messageDiv.innerHTML = '<p class="msg error">✗ ' + emailValidation.message + '</p>';
         return;
       }
 
       if (!passwordValidation.valid) {
-        messageDiv.innerHTML = '<p style="color: #ff6b6b; text-align: center;">✗ ' + passwordValidation.message + '</p>';
+        messageDiv.innerHTML = '<p class="msg error">✗ ' + passwordValidation.message + '</p>';
         return;
       }
 
       if (!confirmValidation.valid) {
-        messageDiv.innerHTML = '<p style="color: #ff6b6b; text-align: center;">✗ ' + confirmValidation.message + '</p>';
+        messageDiv.innerHTML = '<p class="msg error">✗ ' + confirmValidation.message + '</p>';
         return;
       }
 
       if (!terms) {
-        messageDiv.innerHTML = '<p style="color: #ff6b6b; text-align: center;">✗ You must agree to the Terms & Conditions.</p>';
+        messageDiv.innerHTML = '<p class="msg error">✗ You must agree to the Terms & Conditions.</p>';
         return;
       }
 
@@ -478,12 +448,14 @@
         }
 
         if (data && data.status === 'success') {
-          messageDiv.innerHTML = '<p style="color: #4ade80; text-align: center;">✓ Account created successfully! Redirecting to sign in...</p>';
+            messageDiv.innerHTML = '<p class="msg success">✓ Account created successfully! Redirecting to sign in...</p>';
+          if (window.showToast) showToast('Account created successfully', 'success');
           setTimeout(() => {
             window.location.href = 'signin.html';
           }, 1500);
         } else {
-          messageDiv.innerHTML = `<p style="color: #ff6b6b; text-align: center;">✗ ${data.message || 'Sign up failed. Please try again.'}</p>`;
+          messageDiv.innerHTML = `<p class="msg error">✗ ${data.message || 'Sign up failed. Please try again.'}</p>`;
+          if (window.showToast) showToast(data.message || 'Sign up failed', 'error');
           // Add shake animation to login box
           document.querySelector('.login-box').classList.add('error');
           setTimeout(() => {
@@ -491,13 +463,22 @@
           }, 500);
           btn.disabled = false;
           btn.textContent = 'CREATE ACCOUNT';
+          document.getElementById('signUpSpinner').style.display = 'none';
         }
       } catch (err) {
-        messageDiv.innerHTML = `<p style="color: #ff6b6b; text-align: center;">✗ Error: ${err.message}</p>`;
+        messageDiv.innerHTML = `<p class="msg error">✗ Error: ${err.message}</p>`;
+        if (window.showToast) showToast('Error creating account', 'error');
         btn.disabled = false;
         btn.textContent = 'CREATE ACCOUNT';
+        document.getElementById('signUpSpinner').style.display = 'none';
       }
     });
   </script>
+
+  <!-- Copyright Footer -->
+  <footer class="site-footer">
+    <p class="bold">&copy; 2026 Stephen. All Rights Reserved.</p>
+    <p>Proprietary Software - All Rights Reserved</p>
+  </footer>
 </body>
 </html>

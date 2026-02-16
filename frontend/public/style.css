@@ -1,3 +1,245 @@
+/* Design tokens */
+:root {
+  --color-bg: #f7f8fa;
+  --color-surface: #ffffff;
+  --color-border: #e5e7eb;
+  --color-muted: #6b7280;
+  --color-text: #1f2937;
+  --color-heading: #111827;
+  --color-primary: #2563eb;
+  --color-primary-contrast: #ffffff;
+  --radius: 10px;
+  --shadow: 0 2px 8px rgba(0,0,0,0.08);
+  --space-1: 6px;
+  --space-2: 10px;
+  --space-3: 16px;
+  --space-4: 24px;
+}
+
+/* Base */
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', 'Apple Color Emoji', 'Segoe UI Emoji';
+}
+
+h1, h2, h3 { color: var(--color-heading); }
+p { color: var(--color-text); }
+
+a { color: var(--color-primary); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* Containers */
+.container { max-width: 1100px; margin: 0 auto; padding: var(--space-4); }
+
+/* Buttons */
+.btn { display: inline-block; padding: 10px 16px; border-radius: var(--radius); border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text); cursor: pointer; }
+.btn-primary { background: var(--color-primary); color: var(--color-primary-contrast); border-color: var(--color-primary); }
+.btn:hover { box-shadow: var(--shadow); }
+.btn[disabled] { opacity: 0.6; cursor: not-allowed; box-shadow: none; }
+
+/* Spinner */
+.spinner {
+  width: 18px; height: 18px;
+  border: 2px solid #cbd5e1; /* slate-300 */
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  display: inline-block;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Toast */
+.toast {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  color: var(--color-text);
+  z-index: 1000;
+}
+.toast.success { border-color: #22c55e; }
+.toast.error { border-color: #ef4444; }
+
+/* Inputs */
+input, select, textarea { border: 1px solid var(--color-border); border-radius: var(--radius); padding: 10px; background: var(--color-surface); color: var(--color-text); }
+label { color: var(--color-muted); }
+
+/* Cards */
+.card { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); padding: var(--space-3); box-shadow: var(--shadow); }
+.card h3 { margin: 0 0 var(--space-2) 0; }
+
+/* Embedded Docs */
+.doc-frame {
+  width: 100%;
+  min-height: 70vh;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: #fff;
+}
+
+/* Guide content (Markdown-rendered) */
+.guide-content {
+  color: var(--color-text);
+}
+.guide-content h1, .guide-content h2, .guide-content h3, .guide-content h4, .guide-content h5, .guide-content h6 {
+  color: var(--color-heading);
+  margin: 0 0 10px 0;
+}
+.guide-content p { margin: 8px 0; }
+.guide-content ul, .guide-content ol {
+  margin: 8px 0 12px 0;
+  padding-left: 22px;
+}
+.guide-content ul { list-style-type: disc; }
+.guide-content ol { list-style-type: decimal; }
+.guide-content li { margin: 4px 0; }
+.guide-content code { background: #f3f4f6; padding: 2px 6px; border-radius: 6px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+.guide-content pre { background: #f8fafc; border: 1px solid var(--color-border); border-radius: var(--radius); padding: 10px; overflow: auto; }
+
+/* Search bar */
+.search-bar { display:flex; gap:8px; align-items:center; margin: 12px 0 16px; }
+.search-bar input[type="search"] {
+  flex: 1;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+.search-bar button { padding: 10px 14px; border-radius: var(--radius); border: 1px solid var(--color-border); background: var(--color-surface); cursor: pointer; }
+.search-bar .btn-primary { background: var(--color-primary); color: var(--color-primary-contrast); border-color: var(--color-primary); }
+.search-hit { background: #fff7ed; outline: 2px solid #fdba74; }
+
+/* Search Overlay */
+.search-overlay-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; z-index: 9998; }
+.search-overlay { position: fixed; top: 10%; left: 50%; transform: translateX(-50%); width: min(720px, 92vw); background: #fff; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.25); display: none; z-index: 9999; }
+.search-overlay header { padding: 12px 16px; border-bottom: 1px solid #eee; display:flex; align-items:center; gap:8px; }
+.search-overlay input { flex:1; padding: 10px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 1rem; }
+.search-overlay .results { max-height: 50vh; overflow:auto; padding: 8px 0; }
+.search-overlay .result-item { padding: 10px 16px; border-bottom: 1px solid #f0f0f0; cursor: pointer; }
+.search-overlay .result-item:hover, .search-overlay .result-item.active { background: #f7faff; }
+.navbar .search-icon { margin-left: auto; cursor: pointer; padding: 6px 8px; border-radius: 6px; }
+.navbar .search-icon:hover { background: rgba(0,0,0,0.06); }
+
+/* Lesson card styles */
+.lesson-card {
+  border: 1px solid var(--color-border);
+  padding: var(--space-3);
+  margin: var(--space-2) 0;
+  border-radius: var(--radius);
+  background: var(--color-surface);
+}
+.lesson-card h3 { margin: 0 0 6px; font-size: 1.1rem; }
+.lesson-card.full p { margin: 6px 0 10px; }
+#projectsOutput.empty-state,
+#lessonsGrid.empty-state { margin: 12px 0 16px; }
+
+.grid-header { margin: 12px 0 16px; }
+.grid-header h2 { margin: 0; font-size: 1.25rem; color: var(--text-primary, #222); }
+
+.week-badge {
+  display: inline-block;
+  background: var(--accent, #4a90e2);
+  color: #fff;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 0.8rem;
+  margin-right: 8px;
+}
+
+.lesson-card.highlight {
+  outline: 2px solid var(--accent, #4a90e2);
+  box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.15);
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.video-placeholder {
+  background: #eee;
+  height: 200px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #777;
+}
+
+.empty-state {
+  background: #fafafa;
+  border: 1px dashed #cfcfcf;
+  color: #666;
+  padding: var(--space-4);
+  border-radius: var(--radius);
+  text-align: center;
+}
+
+.empty-state h3 {
+  margin: 0 0 8px 0;
+  color: #444;
+}
+
+.empty-state p {
+  margin: 0;
+}
+
+/* Lesson grid and cards */
+#lessonsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--space-3);
+}
+
+/* Admin week cue */
+.week-cue { display:inline-block; padding: 4px 8px; border-radius: var(--radius); border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-muted); font-size: 0.9rem; }
+.week-cue.highlight { background: #dbeafe; border-color: #93c5fd; color: #1e3a8a; }
+
+.lesson-card.full {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: var(--space-3);
+  box-shadow: var(--shadow);
+}
+
+.lesson-card.full h3 {
+  margin: 0 0 var(--space-2) 0;
+  font-size: 18px;
+  color: var(--color-heading);
+}
+
+.lesson-card.full p {
+  margin: var(--space-1) 0 var(--space-2) 0;
+  color: var(--color-text);
+}
+.badge { display:inline-block; padding: 2px 8px; border-radius: 999px; font-size: 0.8rem; }
+.badge-late { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+.muted { color: var(--color-muted); font-size: 0.9rem; }
+.upload-row { display:flex; gap: 8px; align-items:center; margin-top: 8px; }
+.content-preview { margin-top: 6px; color: #555; }
+.submission-row { border-top: 1px solid var(--color-border); padding-top: 8px; margin-top: 8px; }
+
+.lesson-card.full video {
+  width: 100%;
+  border-radius: var(--radius);
+  background: #000;
+}
+.lesson-card.compact { display: flex; align-items: center; gap: 12px; }
+.lesson-card.compact p { margin: 0; color: #555; }
 /* ===== GENERAL STYLES ===== */
 body {
   font-family: Arial, sans-serif;

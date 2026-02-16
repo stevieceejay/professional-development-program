@@ -2,6 +2,34 @@ import sqlite3
 import requests
 import json
 import os
+import socket
+import time
+
+def wait_for_server(host='localhost', port=8080, timeout=30):
+    """Wait for server to be available"""
+    start_time = time.time()
+    while time.time() - start_time < timeout:
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(1)
+            result = sock.connect_ex((host, port))
+            sock.close()
+            if result == 0:
+                print(f"✓ Server is running on {host}:{port}")
+                return True
+            time.sleep(1)
+        except:
+            time.sleep(1)
+    print(f"✗ Server not available on {host}:{port} after {timeout}s")
+    return False
+
+# Check server before running tests
+print("Checking if server is running...")
+if not wait_for_server():
+    print("\nPlease start the server:")
+    print("  cd C:\\Users\\NewAdmin\\Documents\\ARG-professional-developement")
+    print("  npm start")
+    exit(1)
 
 # Get correct database path
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -91,7 +119,7 @@ print("\n" + "="*60)
 print("TEST 2: Testing API Endpoints")
 print("="*60)
 
-BASE_URL = "http://localhost:5000"
+BASE_URL = "http://localhost:8080"
 API_URL = f"{BASE_URL}/api"
 
 # Test server is running
@@ -110,15 +138,24 @@ except requests.exceptions.RequestException as e:
 print("\nTesting login endpoint...")
 token = None
 try:
-    login_response = requests.post(f"{API_URL}/auth/login", json={
+    test_pw = os.environ.get("TEST_USER_PASSWORD")
+    if not test_pw:
+        print("✗ TEST_USER_PASSWORD environment variable is not set. Set it before running backend tests.")
+        exit(2)
+    login_response = requests.post(f"{API_URL}/signin", json={
         "username": "bob",
-        "password": "password123"
+        "password": test_pw
     })
     
     if login_response.status_code == 200:
-        token = login_response.json().get("token")
+        data = login_response.json()
         print(f"✓ Login successful")
-        print(f"  Token received: {token[:20]}...")
+        print(f"  Response: {data}")
+        # Your API uses sessions, not tokens
+        # Save the session cookie for subsequent requests
+        session = requests.Session()
+        session.cookies.update(login_response.cookies)
+        token = "session-based"
     else:
         print(f"✗ Login failed: {login_response.status_code}")
         print(f"  Response: {login_response.text}")
@@ -128,10 +165,10 @@ except Exception as e:
 # Test fetching lessons
 if token:
     print("\nTesting lessons endpoint...")
-    headers = {"Authorization": f"Bearer {token}"}
     
     try:
-        lessons_response = requests.get(f"{API_URL}/lessons", headers=headers)
+        # Use the session with cookies
+        lessons_response = session.get(f"{API_URL}/lessons")
         if lessons_response.status_code == 200:
             lessons_data = lessons_response.json()
             print(f"✓ Lessons endpoint working")
@@ -147,9 +184,8 @@ if token:
     if lesson:
         print("\nTesting assignments endpoint...")
         try:
-            assignments_response = requests.get(
-                f"{API_URL}/lessons/{lesson[0]}/assignments", 
-                headers=headers
+            assignments_response = session.get(
+                f"{API_URL}/lessons/{lesson[0]}/assignments"
             )
             if assignments_response.status_code == 200:
                 assignments_data = assignments_response.json()
@@ -169,15 +205,15 @@ print("="*60)
 
 if token and assignment:
     submission_data = {
+        "assignment_id": assignment[0],
         "content": """My MBTI type is ISTJ - The Logistician.
 
 I am interested in pursuing a career in backend software development and systems architecture. I enjoy building robust, efficient systems and solving complex technical problems."""
     }
     
     try:
-        submit_response = requests.post(
-            f"{API_URL}/assignments/{assignment[0]}/submit",
-            headers=headers,
+        submit_response = session.post(
+            f"{API_URL}/submissions",
             json=submission_data
         )
         
@@ -189,8 +225,6 @@ I am interested in pursuing a career in backend software development and systems
             print(f"  Response: {submit_response.text}")
     except Exception as e:
         print(f"✗ Error submitting assignment: {e}")
-else:
-    print("Skipping submission test - missing token or assignment")
 
 print("\n" + "="*60)
 print("SUMMARY")
@@ -198,4 +232,3 @@ print("="*60)
 print("✓ Run this test to verify everything works")
 print("✓ Check database path and tables")
 print("✓ Ensure server is running on http://localhost:5000")
-print("Server running on port 5000")

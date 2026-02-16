@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lessons</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="extracted-styles.css">
+</head>
+<body>
+  <header>
+    <nav class="navbar">
+      <a href="index.html">Home</a>
+      <a href="signin.html">Sign In</a>
+      <a href="signup.html">Sign Up</a>
+      <a href="dashboard.html">Dashboard</a>
+      <a href="lessons.html">Lessons</a>
+      <a href="admin.html">Admin</a>
+    </nav>
+  </header>
+  
+  <h1>Weekly Lessons</h1>
+  <p>Select a week to view lesson content and assignments.</p>
+  
+  <label for="weekSelect">Week:</label>
+  <select id="weekSelect" class="full-width" style="margin-bottom:1rem;">
+    <option value="all">All Weeks</option>
+  </select>
+  
+  <div id="pagination-info" class="muted" style="margin:1rem 0;"></div>
+  <div id="pagination-controls" style="margin: 1rem 0; display: flex; gap: 0.5rem; align-items: center;"></div>
+  
+  <div id="lessonsGrid"></div>
+  
+  <div id="pagination-controls-bottom" style="margin: 2rem 0; display: flex; gap: 0.5rem; align-items: center; justify-content: center;"></div>
+
+  <!-- Assignment submission box -->
+  <div class="lesson-card" id="manualSubmission" style="display:none;">
+    <h2>Assignment Submission</h2>
+    <p>
+      <strong>Current Assignment:</strong> <span id="manualAssignmentTitle" style="color:#333;">(none selected)</span>
+    </p>
+    <div>
+      <label for="manualContent">Your Text:</label>
+      <textarea id="manualContent" rows="5" class="assignment-form" placeholder="Paste or type your assignment text here..."></textarea>
+    </div>
+    <div class="upload-row" style="margin-top:0.5rem;">
+      <label for="manualFile">Upload a file:</label>
+      <input type="file" id="manualFile" />
+    </div>
+    <div style="margin-top:0.75rem; display:flex; gap:0.5rem; align-items:center;">
+      <button id="manualSubmitBtn" class="btn-submit">Submit Text</button>
+      <button id="manualUploadBtn" class="btn-submit">Upload File</button>
+      <span id="manualStatus" class="muted" style="margin-left:0.5rem;"></span>
+    </div>
+  </div>
+
+  <!-- AI Tutor section -->
+  <div class="lesson-card" id="aiTutorSection">
+    <h2>AI Tutor Assistance</h2>
+    <button id="aiHelpBtn">🤖 Ask AI Tutor</button>
+    <div id="aiChat" class="ai-chat">
+      <textarea id="aiQuestion" placeholder="Ask about this lesson..." rows="3" class="full-width"></textarea>
+      <button id="askAI">Ask</button>
+      <div id="aiResponse" class="ai-response"></div>
+    </div>
+  </div>
+
+  <!-- Load API functions -->
+  <script src="/js/api.js"></script>
+  <script src="scripts.js"></script>
+  
+  <script>
+  console.log('Lessons page script loaded');
+  let allLessons = [];
+  let currentLessonForAI = null;
+  let currentPage = 1;
+  const lessonsPerPage = 6;
+
+  // Load all lessons from database
+  async function loadAllLessons() {
+    try {
+      console.log('Loading lessons...');
+      const lessons = await fetchLessons();
+      console.log('Lessons loaded:', lessons.length);
+      allLessons = lessons;
+      
+      // Populate week selector
+      const weekSelect = document.getElementById('weekSelect');
+      lessons.forEach(lesson => {
+        const option = document.createElement('option');
+        option.value = lesson.week;
+        option.textContent = `Week ${lesson.week}`;
+        weekSelect.appendChild(option);
+      });
+      
+      // Display all lessons initially
+      displayLessons('all');
+    } catch (error) {
+      console.error('Error loading lessons:', error);
+      document.getElementById('lessonsGrid').innerHTML = '<p style="color:red;">Error loading lessons. Please refresh the page.</p>';
+    }
+  }
+
+  // Display lessons based on selected week
+  async function displayLessons(weekFilter, page = 1) {
+    const grid = document.getElementById('lessonsGrid');
+    grid.innerHTML = '';
+    
+    const filtered = weekFilter === 'all' 
+      ? allLessons 
+      : allLessons.filter(l => l.week === parseInt(weekFilter));
+    
+    if (filtered.length === 0) {
+      grid.innerHTML = '<p>No lessons found.</p>';
+      document.getElementById('pagination-info').innerHTML = '';
+      document.getElementById('pagination-controls').innerHTML = '';
+      document.getElementById('pagination-controls-bottom').innerHTML = '';
+      return;
+    }
+    
+    // Pagination logic
+    const totalPages = Math.ceil(filtered.length / lessonsPerPage);
+    currentPage = Math.min(Math.max(1, page), totalPages);
+    const startIdx = (currentPage - 1) * lessonsPerPage;
+    const endIdx = startIdx + lessonsPerPage;
+    const paginatedLessons = filtered.slice(startIdx, endIdx);
+    
+    // Update pagination info
+    const infoText = `Showing ${startIdx + 1}-${Math.min(endIdx, filtered.length)} of ${filtered.length} lessons`;
+    document.getElementById('pagination-info').textContent = infoText;
+    
+    // Render pagination controls
+    renderPaginationControls(totalPages, weekFilter);
+    
+    for (const lesson of paginatedLessons) {
+      const card = document.createElement('div');
+      card.className = 'lesson-card';
+      
+      // Check submission status
+      const submissionStatus = await checkSubmissionStatus(lesson.id);
+      
+      let assignmentHTML = '';
+      if (submissionStatus && submissionStatus.submitted) {
+        // Already submitted
+        if (submissionStatus.graded) {
+          assignmentHTML = `
+            <div class="assignment-section">
+              <h3>📝 Week ${lesson.week} Assignment</h3>
+              <div class="submission-status status-graded">✅ Graded</div>
+              <div class="grade-display">Grade: ${submissionStatus.grade}%</div>
+              ${submissionStatus.feedback ? `<p><strong>Feedback:</strong> ${submissionStatus.feedback}</p>` : ''}
+              ${submissionStatus.submitted_at ? `<p style="margin-top:1rem;"><em>Submitted on: ${new Date(submissionStatus.submitted_at).toLocaleDateString()}</em></p>` : ''}
+            </div>
+          `;
+        } else {
+          // Submitted but not graded - show pending status and allow update/resubmit
+          const existingContent = submissionStatus.content ? submissionStatus.content.replace(/</g, '&lt;') : '';
+          assignmentHTML = `
+            <div class="assignment-section">
+              <h3>📝 Week ${lesson.week} Assignment</h3>
+              <div class="submission-status status-pending">⏳ Pending Review</div>
+              <p>You have already submitted this assignment. You may update your submission before it is graded.</p>
+              <div class="assignment-form">
+                <textarea 
+                  id="assignment-${lesson.id}" 
+                  placeholder="Update your submission..."
+                >${existingContent}</textarea>
+                <div style="display:flex; align-items:center; gap:0.5rem;">
+                  <button class="btn-submit" data-lesson-id="${lesson.id}" data-week="${lesson.week}">
+                    Update Submission
+                  </button>
+                  <span id="status-${lesson.id}" class="muted"></span>
+                </div>
+                <div class="char-counter muted" id="counter-${lesson.id}">${existingContent.length} characters</div>
+              </div>
+              ${submissionStatus.submitted_at ? `<p style="margin-top:1rem;"><em>Submitted on: ${new Date(submissionStatus.submitted_at).toLocaleString()}</em></p>` : ''}
+            </div>
+          `;
+        }
+      } else {
+        // Not submitted yet - show form
+        assignmentHTML = `
+          <div class="assignment-section">
+            <h3>📝 Week ${lesson.week} Assignment</h3>
+            <p>Complete the assignment for this week.</p>
+            <div class="assignment-form">
+              <textarea 
+                id="assignment-${lesson.id}" 
+                placeholder="Write your assignment submission here...&#10;&#10;Tips:&#10;- Answer all questions thoroughly&#10;- Use examples from your experience&#10;- Proofread before submitting&#10;&#10;Note: You must be signed in to submit assignments."
+              ></textarea>
+              <div style="display:flex; align-items:center; gap:0.5rem;">
+                <button class="btn-submit" data-lesson-id="${lesson.id}" data-week="${lesson.week}">
+                  Submit Assignment
+                </button>
+                <span id="status-${lesson.id}" class="muted"></span>
+              </div>
+              <div class="char-counter muted" id="counter-${lesson.id}">0 characters</div>
+            </div>
+          </div>
+        `;
+      }
+      
+      card.innerHTML = `
+        <h2>Week ${lesson.week}: ${lesson.title}</h2>
+        <p>${lesson.description}</p>
+        ${lesson.video_url ? `
+          <div class="video">
+            <video controls width="100%" style="max-width:640px;">
+              <source src="${lesson.video_url}" type="video/mp4">
+              Your browser does not support the video tag.
+            </video>
+          </div>
+        ` : '<p><em>Video coming soon...</em></p>'}
+        ${assignmentHTML}
+      `;
+      
+      grid.appendChild(card);
+
+      // Add event listener for submit buttons
+      const btn = card.querySelector('.btn-submit');
+      if (btn) {
+        btn.addEventListener('click', function() {
+          const lessonId = this.getAttribute('data-lesson-id');
+          const week = this.getAttribute('data-week');
+          submitAssignment(lessonId, week);
+        });
+      }
+
+      // Attach character counter to textarea if present
+      const ta = card.querySelector(`#assignment-${lesson.id}`);
+      const counter = card.querySelector(`#counter-${lesson.id}`);
+      if (ta && counter) {
+        const updateCounter = () => {
+          const len = (ta.value || '').length;
+          counter.textContent = `${len} characters`;
+        };
+        ta.addEventListener('input', updateCounter);
+        // initialize
+        updateCounter();
+      }
+    }
+    
+    // Update current lesson for AI
+    if (weekFilter !== 'all' && filtered.length > 0) {
+      currentLessonForAI = filtered[0];
+    } else {
+      currentLessonForAI = null;
+    }
+
+      // Show manual submission box when a specific week is selected
+      const manualDiv = document.getElementById('manualSubmission');
+      const manualTitle = document.getElementById('manualAssignmentTitle');
+      if (currentLessonForAI) {
+        manualDiv.style.display = 'block';
+        manualTitle.textContent = `${currentLessonForAI.title} (Week ${currentLessonForAI.week})`;
+        manualTitle.dataset.lessonId = currentLessonForAI.id;
+      } else {
+        manualDiv.style.display = 'none';
+        manualTitle.textContent = '(none selected)';
+        delete manualTitle.dataset.lessonId;
+      }
+  }
+
+  // Render pagination controls
+  function renderPaginationControls(totalPages, weekFilter) {
+    const controls = document.getElementById('pagination-controls');
+    const controlsBottom = document.getElementById('pagination-controls-bottom');
+    
+    if (totalPages <= 1) {
+      controls.innerHTML = '';
+      controlsBottom.innerHTML = '';
+      return;
+    }
+    
+    let html = '';
+    
+    // Previous button
+    if (currentPage > 1) {
+      html += `<button onclick="goToPage(${currentPage - 1}, '${weekFilter}')">← Previous</button>`;
+    }
+    
+    // Page numbers
+    for (let i = 1; i <= totalPages; i++) {
+      if (i === currentPage) {
+        html += `<button style="font-weight: bold; background: #667eea; color: white;">${i}</button>`;
+      } else if (i === 1 || i === totalPages || (i >= currentPage - 1 && i <= currentPage + 1)) {
+        html += `<button onclick="goToPage(${i}, '${weekFilter}')">${i}</button>`;
+      } else if (i === currentPage - 2 || i === currentPage + 2) {
+        html += `<span style="padding: 0 0.5rem;">...</span>`;
+      }
+    }
+    
+    // Next button
+    if (currentPage < totalPages) {
+      html += `<button onclick="goToPage(${currentPage + 1}, '${weekFilter}')">Next →</button>`;
+    }
+    
+    controls.innerHTML = html;
+    controlsBottom.innerHTML = html;
+  }
+  
+  // Navigate to page
+  window.goToPage = function(page, weekFilter) {
+    displayLessons(weekFilter, page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Week selector change handler
+  const weekSelect = document.getElementById('weekSelect');
+  if (weekSelect) {
+    weekSelect.addEventListener('change', (e) => {
+      currentPage = 1;
+      displayLessons(e.target.value, 1);
+    });
+  } else {
+    console.error('Week selector not found');
+  }
+
+  // Check submission status for a lesson (use canonical /api/submissions/my)
+  async function checkSubmissionStatus(lessonId) {
+    try {
+      const response = await fetch(`/api/submissions/my`, { credentials: 'same-origin' });
+      if (!response.ok) {
+        // If not authenticated or other error, treat as no submission
+        return null;
+      }
+      const arr = await response.json();
+      if (!Array.isArray(arr)) return null;
+      const found = arr.find(s => Number(s.lesson_id) === Number(lessonId));
+      return found || null;
+    } catch (error) {
+      console.error('Error checking submission:', error);
+      return null;
+    }
+  }
+
+  // Submit assignment
+  async function submitAssignment(lessonId, weekNumber) {
+    const textareaId = `assignment-${lessonId}`;
+    const textarea = document.getElementById(textareaId);
+    const content = textarea.value.trim();
+
+    const btn = document.querySelector(`.btn-submit[data-lesson-id="${lessonId}"]`);
+    const statusEl = document.getElementById(`status-${lessonId}`);
+    const counterEl = document.getElementById(`counter-${lessonId}`);
+
+    // Confirmation for updates
+    const isUpdate = btn && /update/i.test(btn.textContent || '');
+    if (isUpdate) {
+      const ok = confirm('You already submitted this assignment. Do you want to update your submission?');
+      if (!ok) return;
+    }
+
+    if (content.length < 10) {
+      if (window.showToast) showToast('Please write at least 10 characters for your submission.', 'error');
+      if (statusEl) statusEl.textContent = 'Please write at least 10 characters.';
+      return;
+    }
+
+    try {
+      if (btn) { btn.disabled = true; btn.textContent = isUpdate ? 'Updating...' : 'Submitting...'; }
+      if (statusEl) { statusEl.textContent = isUpdate ? 'Updating submission...' : 'Submitting...'; }
+
+      const response = await fetch(`/api/submissions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ lesson_id: Number(lessonId), content })
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        if (window.showToast) showToast('Assignment submitted successfully! ✅', 'success');
+        if (statusEl) statusEl.textContent = 'Submitted successfully.';
+        textarea.value = '';
+        if (counterEl) counterEl.textContent = '0 characters';
+        // reload to refresh graded state
+        setTimeout(() => location.reload(), 800);
+      } else {
+        const errMsg = (data && (data.error || data.message)) || 'Failed to submit assignment';
+        if (response.status === 401) {
+          if (window.showToast) showToast('Please sign in to submit assignments.', 'error');
+          if (statusEl) statusEl.textContent = 'Please sign in to submit assignments.';
+        } else {
+          if (window.showToast) showToast(errMsg, 'error');
+          if (statusEl) statusEl.textContent = errMsg;
+        }
+      }
+    } catch (error) {
+      console.error('Submission error:', error);
+      if (window.showToast) showToast('Error submitting assignment. Please try again.', 'error');
+      if (statusEl) statusEl.textContent = 'Error submitting assignment.';
+    }
+    finally {
+      if (btn) { btn.disabled = false; btn.textContent = isUpdate ? 'Update Submission' : 'Submit Assignment'; }
+    }
+  }
+
+  // AI Tutor functionality
+  const aiHelpBtn = document.getElementById('aiHelpBtn');
+  const aiChat = document.getElementById('aiChat');
+  const askAIBtn = document.getElementById('askAI');
+  const aiQuestion = document.getElementById('aiQuestion');
+
+  if (aiHelpBtn && aiChat) {
+    aiHelpBtn.addEventListener('click', () => {
+      const isHidden = aiChat.style.display === 'none';
+      aiChat.style.display = isHidden ? 'block' : 'none';
+      
+      if (isHidden && !currentLessonForAI) {
+        document.getElementById('aiResponse').innerHTML =
+          '<em style="color:#999;">Select a specific week above to ask questions about that lesson.</em>';
+      }
+    });
+  }
+
+  if (askAIBtn) {
+    askAIBtn.addEventListener('click', async () => {
+    const responseDiv = document.getElementById('aiResponse');
+    const questionInput = document.getElementById('aiQuestion');
+    const question = questionInput.value.trim();
+    
+    if (!question) {
+      responseDiv.textContent = 'Please enter a question.';
+      return;
+    }
+    
+    if (!currentLessonForAI) {
+      responseDiv.innerHTML = '<em style="color:orange;">Please select a specific week to ask about that lesson.</em>';
+      return;
+    }
+    
+    responseDiv.innerHTML = '🤖 <em>Thinking...</em>';
+    document.getElementById('askAI').disabled = true;
+    
+    try {
+      const res = await fetch('/api/ai/lesson-help', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({
+          lessonId: currentLessonForAI.id,
+          question: question
+        })
+      });
+      
+      const data = await res.json();
+      
+      if (res.ok && data.success) {
+        responseDiv.innerHTML = `
+          <strong style="color:#2c5282;">🤖 AI Tutor:</strong>
+          <p style="margin:0.5rem 0;">${data.answer}</p>
+          <small style="color:#666;">Remaining questions this hour: ${data.remainingQuestions}/10</small>
+        `;
+        questionInput.value = '';
+      } else if (res.status === 401) {
+        responseDiv.innerHTML = '<em style="color:red;">Please sign in to use AI assistance.</em>';
+      } else if (res.status === 429) {
+        responseDiv.innerHTML = '<em style="color:orange;">⏱️ ' + (data.error || 'Rate limit reached. Try again in an hour.') + '</em>';
+      } else {
+        responseDiv.innerHTML = '<em style="color:red;">' + (data.error || 'Unable to get response.') + '</em>';
+      }
+    } catch (error) {
+      console.error('AI Error:', error);
+      responseDiv.innerHTML = '<em style="color:red;">Network error. Please check your connection.</em>';
+    } finally {
+      document.getElementById('askAI').disabled = false;
+    }
+  });
+  }
+
+  if (aiQuestion) {
+    aiQuestion.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        if (askAIBtn) askAIBtn.click();
+      }
+    });
+  }
+
+  // Load lessons on page load
+  loadAllLessons();
+</script>
+
+  <footer style="margin-top: 3rem; padding: 1.5rem 0; border-top: 2px solid #ddd; text-align: center; color: #666; background: #f9f9f9;">
+    <p style="margin: 0.5rem 0; font-weight: bold;">&copy; 2026 Stephen. All Rights Reserved.</p>
+    <p style="margin: 0.5rem 0; font-size: 0.9em;">
+      This platform and all educational content are protected by copyright law.
+      <br>Unauthorized use, reproduction, or distribution is prohibited.
+    </p>
+  </footer>
+</body>
+</html>

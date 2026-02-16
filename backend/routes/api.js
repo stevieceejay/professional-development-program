@@ -8,8 +8,10 @@
 
 const express = require('express');
 const router = express.Router();
+const upload = require('../middleware/videoUpload');
 const path = require('path');
 const fs = require('fs');
+const fsPromises = fs.promises;
 const marked = require('marked');
 const bcrypt = require('bcrypt');
 const db = require('../data/db');
@@ -35,7 +37,7 @@ const storage = multer.diskStorage({
   }
 });
 
-const upload = multer({ 
+const uploadMiddleware = multer({ 
   storage,
   limits: {
     fileSize: 500 * 1024 * 1024, // 500MB limit for video uploads
@@ -127,8 +129,8 @@ router.post('/signup', (req, res) => {
     }
 
     const stmt = db.prepare(`
-      INSERT INTO users (username, email, password, role, created_at)
-      VALUES (?, ?, ?, ?, datetime('now'))
+      INSERT INTO users (username, email, password, role)
+      VALUES (?, ?, ?, ?)
     `);
 
     stmt.run([username, email, hashedPassword, 'User'], function (err) {
@@ -152,8 +154,8 @@ router.post('/signup', (req, res) => {
   });
 });
 
-// --- Signin route ---
-router.post('/signin', (req, res) => {
+// --- Signin handler (used by both /signin and /login aliases) ---
+function signInHandler(req, res) {
   let { username, password } = req.body;
 
   if (!username || !password) {
@@ -208,7 +210,10 @@ router.post('/signin', (req, res) => {
         });
       });
     });
-});
+}
+
+router.post('/signin', signInHandler);
+router.post('/login', signInHandler); // Alias for older client pages
 
 // --- Update lesson by week (Admin) ---
 router.put('/lessons/:week', (req, res) => {
@@ -281,13 +286,7 @@ function requireAdmin(req, res, next) {
   return res.status(403).json({ status: 'error', message: 'Forbidden: Admins only' });
 }
 
-// --- Session info ---
-router.get('/session', (req, res) => {
-  if (req.session && req.session.user) {
-    return res.json({ status: 'success', data: req.session.user });
-  }
-  res.json({ status: 'error', message: 'Not logged in' });
-});
+// (session route defined later once; duplicate removed)
 
 // --- Organizations (Admin) ---
 router.get('/orgs', (req, res) => {
@@ -372,13 +371,6 @@ router.get('/session', (req, res) => {
 });
 
 // --- CRUD: Users (Admin only) ---
-router.get('/users', requireAdmin, (req, res) => {
-  db.all('SELECT id, username, email, role FROM users', [], (err, rows) => {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json(rows);
-  });
-});
-
   // Users list (admin-only), scoped by org when session org exists
   router.get('/users', async (req, res) => {
     try {
@@ -463,6 +455,36 @@ router.delete('/users/:id', requireAdmin, (req, res) => {
   });
 });
 
+// Get current logged-in user
+router.get('/users/me', (req, res) => {
+  try {
+    if (!req.session || !req.session.user) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    // Get full user details from database
+    db.get(
+      'SELECT id, username, email, role FROM users WHERE id = ?',
+      [req.session.user.id],
+      (err, user) => {
+        if (err) {
+          console.error('Error fetching current user:', err);
+          return res.status(500).json({ error: 'Failed to fetch user' });
+        }
+
+        if (!user) {
+          return res.status(404).json({ error: 'User not found' });
+        }
+
+        res.json(user);
+      }
+    );
+  } catch (error) {
+    console.error('Error fetching current user:', error);
+    res.status(500).json({ error: 'Failed to fetch user' });
+  }
+});
+
 // --- Lessons routes ---
 router.get('/lessons', (req, res) => {
   const orgId = getSessionOrgId(req);
@@ -497,6 +519,113 @@ router.post('/lessons', requireAdmin, (req, res) => {
     res.json({ status: 'success', id: this.lastID });
   });
   stmt.finalize();
+});
+
+// ==================== VIDEO UPLOAD ROUTES ====================
+
+// Middleware to check if user is admin
+const isAdmin = (req, res, next) => {
+  if (!req.session || !req.session.user || String(req.session.user.role).toLowerCase() !== 'admin') {
+    return res.status(403).json({ error: 'Admin access required' });
+  }
+  next();
+};
+
+// Upload video for a lesson (Admin only)
+router.post('/lessons/:id/video', isAdmin, upload.single('video'), async (req, res) => {
+  try {
+    const lessonId = req.params.id;
+    const videoFile = req.file;
+
+    if (!videoFile) {
+      return res.status(400).json({ error: 'No video file uploaded' });
+    }
+
+    const videoUrl = `/uploads/videos/${videoFile.filename}`;
+
+    const result = await db.run(
+      'UPDATE lessons SET video_url = ? WHERE id = ?',
+      [videoUrl, lessonId]
+    );
+
+    if (result.changes === 0) {
+      await fs.unlink(videoFile.path);
+      return res.status(404).json({ error: 'Lesson not found' });
+    }
+
+    res.json({
+      message: 'Video uploaded successfully',
+      video_url: videoUrl,
+      filename: videoFile.filename
+    });
+  } catch (error) {
+    console.error('Error uploading video:', error);
+    res.status(500).json({ error: 'Failed to upload video' });
+  }
+});
+
+// Get video URL for a lesson
+router.get('/lessons/:id/video', async (req, res) => {
+  try {
+    const lessonId = req.params.id;
+    
+    const lesson = await db.get(
+      'SELECT video_url FROM lessons WHERE id = ?',
+      [lessonId]
+    );
+
+    if (!lesson) {
+      return res.status(404).json({ error: 'Lesson not found' });
+    }
+
+    if (!lesson.video_url) {
+      return res.status(404).json({ error: 'No video for this lesson' });
+    }
+
+    res.json({ video_url: lesson.video_url });
+  } catch (error) {
+    console.error('Error fetching video:', error);
+    res.status(500).json({ error: 'Failed to fetch video' });
+  }
+});
+
+// Delete video from lesson (Admin only)
+router.delete('/lessons/:id/video', isAdmin, async (req, res) => {
+  try {
+    const lessonId = req.params.id;
+
+    const lesson = await db.get(
+      'SELECT video_url FROM lessons WHERE id = ?',
+      [lessonId]
+    );
+
+    if (!lesson) {
+      return res.status(404).json({ error: 'Lesson not found' });
+    }
+
+    if (!lesson.video_url) {
+      return res.status(404).json({ error: 'No video to delete' });
+    }
+
+    const filename = path.basename(lesson.video_url);
+    const filePath = path.join(__dirname, '../uploads/videos', filename);
+    
+    try {
+      await fs.unlink(filePath);
+    } catch (err) {
+      console.error('Error deleting file:', err);
+    }
+
+    await db.run(
+      'UPDATE lessons SET video_url = NULL WHERE id = ?',
+      [lessonId]
+    );
+
+    res.json({ message: 'Video deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting video:', error);
+    res.status(500).json({ error: 'Failed to delete video' });
+  }
 });
 
 // --- Assignments routes ---
@@ -537,730 +666,275 @@ router.post('/assignments', requireAdmin, (req, res) => {
   stmt.finalize();
 });
 
-// --- Submissions routes ---
-router.post('/submissions', (req, res) => {
-  const { assignment_id, lesson_id, content } = req.body;
-  const user = req.session.user;
-  const orgId = getSessionOrgId(req);
+// ==================== ASSIGNMENT SUBMISSION ROUTES ====================
 
-  if (!user) {
-    return res.status(403).json({ status: 'error', message: 'Not logged in' });
-  }
-  if ((!assignment_id && !lesson_id) || !content) {
-    return res.status(400).json({ status: 'error', message: 'Assignment ID (or legacy lesson_id) and content are required' });
-  }
+// Submit assignment for a lesson (Student)
+// Canonical submission upsert helper used by both lesson-scoped and generic endpoints
+async function upsertSubmission({ userId, lessonId, assignmentId, content }) {
+  if (!userId) return { ok: false, code: 401, message: 'Not authenticated' };
+  if (!content || String(content).trim().length < 10) return { ok: false, code: 400, message: 'Submission must be at least 10 characters' };
 
-  // Detect legacy schema where column is lesson_id instead of assignment_id
-  db.all(`PRAGMA table_info(submissions)`, [], (err, cols) => {
-    const names = Array.isArray(cols) ? cols.map(c => c.name) : [];
-    const hasLessonId = names.includes('lesson_id');
-    const hasAssignmentId = names.includes('assignment_id');
+  // Promise-wrapped helpers for sqlite3 (which uses callbacks)
+  const dbGetP = (sql, params) => new Promise((resolve, reject) => db.get(sql, params, (err, row) => err ? reject(err) : resolve(row)));
+  const dbRunP = (sql, params) => new Promise((resolve, reject) => db.run(sql, params, function (err) { if (err) return reject(err); resolve({ lastID: this.lastID, changes: this.changes }); }));
 
-    let sql, params;
-    if (hasLessonId && !hasAssignmentId) {
-      // Legacy: use lesson_id column
-      if (!lesson_id && assignment_id) {
-        // If only assignment_id provided, try to resolve its lesson_id
-        return db.get('SELECT lesson_id FROM assignments WHERE id = ?', [Number(assignment_id)], (gErr, row) => {
-          if (gErr) return res.status(500).json({ status: 'error', message: gErr.message });
-          const lid = row ? row.lesson_id : null;
-          if (!lid) return res.status(400).json({ status: 'error', message: 'Could not resolve lesson_id from assignment_id' });
-          const stmt = db.prepare(`INSERT INTO submissions (lesson_id, user_id, content${orgId ? ', org_id' : ''}) VALUES (${orgId ? '?, ?, ?, ?' : '?, ?, ?'})`);
-          const p = orgId ? [lid, user.id, content, orgId] : [lid, user.id, content];
-          stmt.run(p, function (iErr) {
-            if (iErr) return res.status(500).json({ status: 'error', message: iErr.message });
-            return res.json({ status: 'success', id: this.lastID });
-          });
-          stmt.finalize();
-        });
+  // Prefer matching by assignment_id when provided, otherwise by lesson_id
+  const whereClause = assignmentId ? 'assignment_id = ?' : 'lesson_id = ?';
+  const whereParam = assignmentId || lessonId;
+
+  try {
+    const existing = await dbGetP(
+      `SELECT id, grade FROM submissions WHERE ${whereClause} AND user_id = ?`,
+      [whereParam, userId]
+    );
+
+    if (existing) {
+      if (existing.grade !== null && existing.grade !== undefined) {
+        return { ok: false, code: 400, message: 'You have already submitted and been graded; resubmission not allowed' };
       }
-      sql = `INSERT INTO submissions (lesson_id, user_id, content${orgId ? ', org_id' : ''}) VALUES (${orgId ? '?, ?, ?, ?' : '?, ?, ?'})`;
-      params = orgId ? [Number(lesson_id), user.id, content, orgId] : [Number(lesson_id), user.id, content];
-    } else if (hasLessonId && hasAssignmentId) {
-      // Mixed schema: ensure NOT NULL lesson_id satisfied and include assignment_id when known
-      let lid = Number(lesson_id);
-      let aid = Number(assignment_id);
-      const finishInsert = (finalLid, finalAid) => {
-        if (!finalLid) return res.status(400).json({ status: 'error', message: 'lesson_id required (resolved or provided)' });
-        // Insert both columns to satisfy NOT NULL constraints on legacy DBs
-        sql = `INSERT INTO submissions (lesson_id, assignment_id, user_id, content${orgId ? ', org_id' : ''}) VALUES (${orgId ? '?, ?, ?, ?, ?' : '?, ?, ?, ?'})`;
-        params = orgId ? [finalLid, finalAid || null, user.id, content, orgId] : [finalLid, finalAid || null, user.id, content];
-        const stmt = db.prepare(sql);
-        stmt.run(params, function (iErr) {
-          if (iErr) return res.status(500).json({ status: 'error', message: iErr.message });
-          res.json({ status: 'success', id: this.lastID });
-        });
-        stmt.finalize();
-      };
-      if (!lid && aid) {
-        // Resolve lesson_id from assignment
-        return db.get('SELECT lesson_id FROM assignments WHERE id = ?', [aid], (gErr, row) => {
-          if (gErr) return res.status(500).json({ status: 'error', message: gErr.message });
-          finishInsert(row ? Number(row.lesson_id) : null, aid);
-        });
-      }
-      return finishInsert(lid, aid);
-    } else {
-      // Current schema: use assignment_id
-      sql = `INSERT INTO submissions (assignment_id, user_id, content) VALUES (?, ?, ?)`;
-      params = [Number(assignment_id), user.id, content];
+      await dbRunP(
+        'UPDATE submissions SET content = ?, submitted_at = ?, feedback = NULL, grade = NULL WHERE id = ?',
+        [String(content).trim(), new Date().toISOString(), existing.id]
+      );
+      return { ok: true, updated: true, submissionId: existing.id };
     }
 
-    if (sql) {
-      const stmt = db.prepare(sql);
-      stmt.run(params, function (iErr) {
-        if (iErr) return res.status(500).json({ status: 'error', message: iErr.message });
-        res.json({ status: 'success', id: this.lastID });
-      });
-      stmt.finalize();
+    const insertSql = 'INSERT INTO submissions (lesson_id, assignment_id, user_id, content, submitted_at) VALUES (?, ?, ?, ?, ?)';
+    const res = await dbRunP(insertSql, [lessonId || null, assignmentId || null, userId, String(content).trim(), new Date().toISOString()]);
+    return { ok: true, created: true, submissionId: res.lastID };
+  } catch (err) {
+    console.error('DB error in upsertSubmission:', err);
+    return { ok: false, code: 500, message: 'Database error' };
+  }
+}
+
+// Legacy/shim: Submit assignment for a lesson (Student) - delegates to canonical /submissions
+router.post('/lessons/:id/submit', async (req, res) => {
+  try {
+    if (!req.session || !req.session.user) return res.status(401).json({ error: 'Not authenticated' });
+    const lessonId = Number(req.params.id);
+    const { content } = req.body || {};
+    const result = await upsertSubmission({ userId: req.session.user.id, lessonId, assignmentId: null, content });
+    if (!result.ok) return res.status(result.code || 400).json({ error: result.message });
+    res.json({ success: true, message: result.updated ? 'Submission updated successfully' : 'Assignment submitted successfully', submissionId: result.submissionId });
+  } catch (err) {
+    console.error('Error submitting assignment (shim):', err);
+    res.status(500).json({ error: 'Failed to submit assignment' });
+  }
+});
+
+// Canonical submissions endpoint: create or update a submission (Student)
+router.post('/submissions', async (req, res) => {
+  try {
+    if (!req.session || !req.session.user) return res.status(401).json({ error: 'Not authenticated' });
+    const { lesson_id, assignment_id, content } = req.body || {};
+    if (!lesson_id && !assignment_id) return res.status(400).json({ error: 'lesson_id or assignment_id required' });
+    const result = await upsertSubmission({ userId: req.session.user.id, lessonId: lesson_id ? Number(lesson_id) : null, assignmentId: assignment_id ? Number(assignment_id) : null, content });
+    if (!result.ok) return res.status(result.code || 400).json({ error: result.message });
+    res.json({ success: true, message: result.updated ? 'Submission updated successfully' : 'Assignment submitted successfully', submissionId: result.submissionId });
+  } catch (err) {
+    console.error('Error in POST /submissions:', err);
+    res.status(500).json({ error: 'Failed to submit' });
+  }
+});
+
+// Get submission status for a lesson (Student)
+router.get('/lessons/:id/submission', async (req, res) => {
+  try {
+    if (!req.session || !req.session.user) {
+      return res.status(401).json({ error: 'Not authenticated' });
     }
+
+    const lessonId = req.params.id;
+    const userId = req.session.user.id;
+
+    const submission = await db.get(
+      `SELECT 
+        s.id,
+        s.lesson_id,
+        s.user_id,
+        s.content,
+        s.submitted_at,
+        s.grade,
+        s.feedback,
+        CASE WHEN s.grade IS NOT NULL THEN 1 ELSE 0 END as graded
+      FROM submissions s
+      WHERE s.lesson_id = ? AND s.user_id = ?`,
+      [lessonId, userId]
+    );
+
+    if (!submission) {
+      return res.status(404).json({ error: 'No submission found' });
+    }
+
+    res.json({
+      submitted: true,
+      graded: Boolean(submission.graded),
+      grade: submission.grade,
+      feedback: submission.feedback,
+      submitted_at: submission.submitted_at,
+      content: submission.content
+    });
+  } catch (error) {
+    console.error('Error fetching submission:', error);
+    res.status(500).json({ error: 'Failed to fetch submission' });
+  }
+});
+
+// Get all submissions for current user (Student Dashboard)
+router.get('/submissions/my', (req, res) => {
+  if (!req.session || !req.session.user) {
+    return res.status(401).json({ error: 'Not authenticated' });
+  }
+  const userId = req.session.user.id;
+  const sql = `SELECT 
+        s.id,
+        s.lesson_id,
+        s.content,
+        s.submitted_at,
+        s.grade,
+        s.feedback,
+        l.week,
+        l.title as lesson_title,
+        CASE WHEN s.grade IS NOT NULL THEN 1 ELSE 0 END as graded
+      FROM submissions s
+      LEFT JOIN lessons l ON l.id = s.lesson_id
+      WHERE s.user_id = ?
+      ORDER BY l.week ASC`;
+  db.all(sql, [userId], (err, rows) => {
+    if (err) {
+      console.error('Error fetching user submissions:', err);
+      return res.status(500).json({ error: 'Failed to fetch submissions' });
+    }
+    res.json(Array.isArray(rows) ? rows : []);
   });
 });
 
-// File upload submission: stores file and records in submissions with file_path
-router.post('/submissions/upload', upload.single('file'), (req, res) => {
-  const user = req.session && req.session.user;
-  if (!user) {
-    return res.status(403).json({ status: 'error', message: 'Not logged in' });
-  }
-  const assignment_id = Number(req.body.assignment_id);
-  if (!assignment_id || !req.file) {
-    return res.status(400).json({ status: 'error', message: 'assignment_id and file are required' });
-  }
-
-  const filePathRel = path.join('uploads', String(user.id), req.file.filename);
-
-  const stmt = db.prepare(`
-    INSERT INTO submissions (assignment_id, user_id, content, file_path)
-    VALUES (?, ?, ?, ?)
-  `);
-  stmt.run([assignment_id, user.id, req.body.content || null, filePathRel], function (err) {
-    if (err) return res.status(500).json({ status: 'error', message: err.message });
-    res.json({ status: 'success', id: this.lastID, file: filePathRel });
-  });
-  stmt.finalize();
-});
-
+// Get all submissions (Admin only)
 router.get('/submissions', requireAdmin, (req, res) => {
-  db.all(`
-    SELECT s.id, s.assignment_id, s.user_id, s.content, s.submitted_at, s.feedback, s.grade,
-           u.username, a.title AS assignment_title
+  db.all(
+    `SELECT 
+      s.id,
+      s.assignment_id,
+      s.user_id,
+      s.content,
+      s.file_path,
+      s.submitted_at,
+      s.feedback,
+      s.grade,
+      u.username,
+      u.email,
+      l.week,
+      l.title as lesson_title
     FROM submissions s
     LEFT JOIN users u ON s.user_id = u.id
     LEFT JOIN assignments a ON s.assignment_id = a.id
-    ORDER BY s.submitted_at DESC
-  `, [], (err, rows) => {
-    if (err) return res.status(500).json({ status: 'error', message: err.message });
-    res.json({ status: 'success', data: rows });
-  });
-});
-
-// Current user submissions
-router.get('/submissions/me', (req, res) => {
-  const user = req.session && req.session.user;
-  if (!user) return res.status(403).json({ status: 'error', message: 'Not logged in' });
-  const sql = `
-    SELECT s.id, s.assignment_id, s.user_id, s.content, s.file_path, s.submitted_at, s.feedback, s.grade,
-           a.title AS assignment_title
-    FROM submissions s
-    LEFT JOIN assignments a ON s.assignment_id = a.id
-    WHERE s.user_id = ?
-    ORDER BY s.submitted_at DESC
-  `;
-  db.all(sql, [user.id], (err, rows) => {
-    if (err) {
-      const msg = String(err && err.message || '');
-      // Fallback for older databases missing assignment_id column
-      if (msg.includes('no such column: s.assignment_id') || msg.includes('no such column: assignment_id')) {
-        const fallback = `
-          SELECT id, NULL as assignment_id, user_id, content, file_path, submitted_at, feedback, grade,
-                 NULL as assignment_title
-          FROM submissions
-          WHERE user_id = ?
-          ORDER BY submitted_at DESC
-        `;
-        return db.all(fallback, [user.id], (fErr, fRows) => {
-          if (fErr) return res.status(500).json({ status: 'error', message: fErr.message });
-          return res.json({ status: 'success', data: fRows });
-        });
-      }
-      // Fallback for older databases missing feedback/grade columns
-      if (msg.includes('no such column: feedback') || msg.includes('no such column: grade')) {
-        const fallback = `
-          SELECT id, NULL as assignment_id, user_id, content, file_path, submitted_at,
-                 NULL as feedback, NULL as grade, NULL as assignment_title
-          FROM submissions
-          WHERE user_id = ?
-          ORDER BY submitted_at DESC
-        `;
-        return db.all(fallback, [user.id], (fErr, fRows) => {
-          if (fErr) return res.status(500).json({ status: 'error', message: fErr.message });
-          return res.json({ status: 'success', data: fRows });
-        });
-      }
-      return res.status(500).json({ status: 'error', message: err.message });
-    }
-    res.json({ status: 'success', data: rows });
-  });
-});
-
-router.put('/submissions/:id', requireAdmin, (req, res) => {
-  const { id } = req.params;
-  const { feedback, grade } = req.body;
-
-  db.run(
-    `UPDATE submissions SET feedback=?, grade=? WHERE id=?`,
-    [feedback, grade, id],
-    function (err) {
-      if (err) return res.status(500).json({ status: 'error', message: err.message });
-      res.json({ status: 'success', updated: this.changes });
-    }
-  );
-});
-
-module.exports = router;
- 
-// --- Admin analytics: user visits ---
-// List raw visits (paginated)
-router.get('/analytics/visits', requireAdmin, (req, res) => {
-  const { limit = 100, offset = 0, start, end, path, user_id } = req.query;
-  const where = [];
-  const params = [];
-  if (start) { where.push('v.visited_at >= ?'); params.push(start); }
-  if (end) { where.push('v.visited_at <= ?'); params.push(end); }
-  if (path) { where.push('v.path LIKE ?'); params.push(`%${path}%`); }
-  if (user_id) { where.push('v.user_id = ?'); params.push(Number(user_id)); }
-  const whereSql = where.length ? 'WHERE ' + where.join(' AND ') : '';
-  const sql = `SELECT v.id, v.user_id, u.username, v.path, v.method, v.user_agent, v.ip, v.visited_at
-               FROM user_visits v
-               LEFT JOIN users u ON v.user_id = u.id
-               ${whereSql}
-               ORDER BY v.id DESC
-               LIMIT ? OFFSET ?`;
-  params.push(Number(limit));
-  params.push(Number(offset));
-  db.all(sql, params, (err, rows) => {
-    if (err) return res.status(500).json({ status: 'error', message: err.message });
-    res.json({ status: 'success', data: rows });
-  });
-});
-
-  // User visits list (admin-only), scoped by org when session org exists
-  router.get('/user_visits', async (req, res) => {
-    try {
-      if (!req.session || !req.session.user || String(req.session.user.role).toLowerCase() !== 'admin') {
-        return res.status(403).json({ status: 'error', message: 'Admin required' });
-      }
-      const orgId = getSessionOrgId(req);
-      const { limit = 100, offset = 0, start, end, path, user_id } = req.query;
-      const where = [];
-      const params = [];
-      if (orgId) { where.push('org_id = ?'); params.push(orgId); }
-      if (start) { where.push('visited_at >= ?'); params.push(start); }
-      if (end) { where.push('visited_at <= ?'); params.push(end); }
-      if (path) { where.push('path LIKE ?'); params.push(`%${path}%`); }
-      if (user_id) { where.push('user_id = ?'); params.push(Number(user_id)); }
-      const whereSql = where.length ? 'WHERE ' + where.join(' AND ') : '';
-      const sql = `SELECT id, user_id, path, visited_at, org_id FROM user_visits ${whereSql} ORDER BY id DESC LIMIT ? OFFSET ?`;
-      params.push(Number(limit));
-      params.push(Number(offset));
-      const rows = db.prepare(sql).all(...params);
-      res.json({ status: 'success', data: rows });
-    } catch (err) {
-      console.error('GET /api/user_visits failed', err);
-      res.status(500).json({ status: 'error', message: 'Server error' });
-    }
-  });
-
-  // --- Admin: unified user search ---
-  router.get('/admin/user_search', async (req, res) => {
-    try {
-      if (!req.session || !req.session.user || String(req.session.user.role).toLowerCase() !== 'admin') {
-        return res.status(403).json({ status: 'error', message: 'Admin required' });
-      }
-      const orgId = getSessionOrgId(req);
-      const q = (req.query.q || '').toString().trim().toLowerCase();
-      const role = (req.query.role || '').toString().trim();
-      const status = (req.query.status || '').toString().trim();
-      const emailFilter = (req.query.email || '').toString().trim().toLowerCase();
-      const pathFilter = (req.query.path || '').toString().trim().toLowerCase();
-      const start = (req.query.start || '').toString().trim();
-      const end = (req.query.end || '').toString().trim();
-      const userIdFilter = req.query.user_id ? Number(req.query.user_id) : null;
-      const projectName = (req.query.projectName || '').toString().trim().toLowerCase();
-      const limit = req.query.limit ? Number(req.query.limit) : 100;
-      const offset = req.query.offset ? Number(req.query.offset) : 0;
-      if (!q) return res.json({ status: 'success', data: [], exists: false });
-
-      // Users by first/last name or email
-      const whereUsers = [];
-      const paramsUsers = [];
-      if (orgId) { whereUsers.push('org_id = ?'); paramsUsers.push(orgId); }
-      if (q) {
-        const qLike = `%${q}%`;
-        whereUsers.push(`(LOWER(COALESCE(first_name,'')) || ' ' || LOWER(COALESCE(last_name,'')) LIKE ? OR LOWER(first_name) LIKE ? OR LOWER(last_name) LIKE ? OR LOWER(email) LIKE ?)`);
-        paramsUsers.push(qLike, qLike, qLike, qLike);
-      }
-      if (emailFilter) { whereUsers.push('LOWER(email) LIKE ?'); paramsUsers.push(`%${emailFilter}%`); }
-      if (role) { whereUsers.push('role = ?'); paramsUsers.push(role); }
-      if (status) { whereUsers.push('status = ?'); paramsUsers.push(status); }
-      const sqlUsers = `SELECT id, COALESCE(first_name,'') as first_name, COALESCE(last_name,'') as last_name, email, org_id, role, status FROM users ${whereUsers.length ? 'WHERE '+whereUsers.join(' AND ') : ''} ORDER BY id DESC LIMIT ? OFFSET ?`;
-      paramsUsers.push(limit, offset);
-      const userRows = db.prepare(sqlUsers).all(...paramsUsers);
-      const users = userRows.map(r => ({
-        id: r.id,
-        first_name: r.first_name || '',
-        last_name: r.last_name || '',
-        name: `${(r.first_name||'').trim()} ${(r.last_name||'').trim()}`.trim(),
-        email: r.email,
-        org_id: r.org_id,
-        role: r.role,
-        status: r.status,
-      }));
-
-      // Visits by path or timestamp match
-      const whereVisits = [];
-      const paramsVisits = [];
-      if (orgId) { whereVisits.push('org_id = ?'); paramsVisits.push(orgId); }
-      if (q) { whereVisits.push('(LOWER(path) LIKE ? OR CAST(visited_at AS TEXT) LIKE ?)'); paramsVisits.push(`%${q}%`, `%${q}%`); }
-      if (pathFilter) { whereVisits.push('LOWER(path) LIKE ?'); paramsVisits.push(`%${pathFilter}%`); }
-      if (start) { whereVisits.push('visited_at >= ?'); paramsVisits.push(start); }
-      if (end) { whereVisits.push('visited_at <= ?'); paramsVisits.push(end); }
-      if (userIdFilter) { whereVisits.push('user_id = ?'); paramsVisits.push(userIdFilter); }
-      const sqlVisits = `SELECT id, user_id, path, visited_at, org_id FROM user_visits ${whereVisits.length ? 'WHERE '+whereVisits.join(' AND ') : ''} ORDER BY id DESC LIMIT ? OFFSET ?`;
-      paramsVisits.push(limit, offset);
-      const visits = db.prepare(sqlVisits).all(...paramsVisits);
-
-      // Projects: name match (if projects table has org_id)
-      let projects = [];
-      try {
-        const whereProjects = [];
-        const paramsProjects = [];
-        if (orgId) { whereProjects.push('org_id = ?'); paramsProjects.push(orgId); }
-        if (q) { whereProjects.push('LOWER(name) LIKE ?'); paramsProjects.push(`%${q}%`); }
-        if (projectName) { whereProjects.push('LOWER(name) LIKE ?'); paramsProjects.push(`%${projectName}%`); }
-        const sqlProjects = `SELECT id, name, status, org_id FROM projects ${whereProjects.length ? 'WHERE '+whereProjects.join(' AND ') : ''} ORDER BY id DESC LIMIT ? OFFSET ?`;
-        paramsProjects.push(limit, offset);
-        projects = db.prepare(sqlProjects).all(...paramsProjects);
-      } catch(_) {}
-
-      const exists = users.length > 0;
-      res.json({ status: 'success', data: { users, visits, projects }, exists });
-    } catch (err) {
-      console.error('GET /api/admin/user_search failed', err);
-      res.status(500).json({ status: 'error', message: 'Server error' });
-    }
-  });
-
-  // --- Admin: user details view (projects, visits, submissions/files)
-  // sqlite3 helpers
-  function dbGet(sql, params = []) {
-    return new Promise((resolve, reject) => {
-      db.get(sql, params, (err, row) => {
-        if (err) return reject(err);
-        resolve(row || null);
-      });
-    });
-  }
-  function dbAll(sql, params = []) {
-    return new Promise((resolve, reject) => {
-      db.all(sql, params, (err, rows) => {
-        if (err) return reject(err);
-        resolve(Array.isArray(rows) ? rows : []);
-      });
-    });
-  }
-
-  router.get('/admin/users/:id/details', requireAdmin, async (req, res) => {
-    try {
-      const orgId = getSessionOrgId(req);
-      const userId = Number(req.params.id);
-      if (!userId) return res.status(400).json({ status: 'error', message: 'Invalid user id' });
-
-      // User basic info
-      const userWhere = orgId ? 'WHERE id = ? AND org_id = ?' : 'WHERE id = ?';
-      const userParams = orgId ? [userId, orgId] : [userId];
-      const user = await dbGet(`SELECT id, username, first_name, last_name, email, role, org_id FROM users ${userWhere} LIMIT 1`, userParams);
-      if (!user) return res.status(404).json({ status: 'error', message: 'User not found' });
-      const displayName = [user.first_name, user.last_name].filter(Boolean).join(' ').trim();
-      user.name = displayName || user.username || user.email || `User #${user.id}`;
-
-      // Projects by org (if projects have user ownership, fallback to all projects in org)
-      let projects = [];
-      try {
-        // Attempt to get projects linked via submissions or ownership
-        if (orgId) {
-          projects = await dbAll(`
-            SELECT DISTINCT p.id, p.name, p.status, p.org_id
-            FROM projects p
-            LEFT JOIN submissions s ON s.org_id = p.org_id
-            WHERE p.org_id = ?
-            ORDER BY p.id DESC
-          `, [orgId]);
-        } else {
-          projects = await dbAll(`SELECT id, name, status, org_id FROM projects ORDER BY id DESC`, []);
-        }
-      } catch (_) {}
-
-      // Visits for this user
-      const visitsSql = orgId
-        ? 'SELECT id, user_id, path, visited_at FROM user_visits WHERE user_id = ? AND org_id = ? ORDER BY id DESC LIMIT 500'
-        : 'SELECT id, user_id, path, visited_at FROM user_visits WHERE user_id = ? ORDER BY id DESC LIMIT 500';
-      const visits = await dbAll(visitsSql, orgId ? [userId, orgId] : [userId]);
-
-      // Submissions/files for this user, enriched with assignment and lesson
-      let submissions = [];
-      try {
-        const baseSql = `
-          SELECT s.id, s.assignment_id, s.content, s.file_path, s.submitted_at,
-                 a.title AS assignment_title, a.lesson_id,
-                 l.week AS lesson_week, l.title AS lesson_title
-          FROM submissions s
-          LEFT JOIN assignments a ON a.id = s.assignment_id
-          LEFT JOIN lessons l ON l.id = a.lesson_id
-        `;
-        const where = orgId ? 'WHERE s.user_id = ? AND s.org_id = ?' : 'WHERE s.user_id = ?';
-        const order = 'ORDER BY s.id DESC';
-        const sql = `${baseSql} ${where} ${order}`;
-        submissions = await dbAll(sql, orgId ? [userId, orgId] : [userId]);
-      } catch (_) {}
-
-      // Derive activity links to lessons (where submissions exist)
-      const activity = submissions
-        .filter(s => s.lesson_id)
-        .map(s => ({
-          lesson_id: s.lesson_id,
-          lesson_title: s.lesson_title || `Lesson ${s.lesson_id}`,
-          week: s.lesson_week || null,
-          href: `lessons.html#assignment-${s.lesson_id}`
-        }));
-
-      res.json({ status: 'success', data: { user, projects, visits, submissions, activity } });
-    } catch (err) {
-      console.error('GET /api/admin/users/:id/details failed', err);
-      res.status(500).json({ status: 'error', message: 'Server error' });
-    }
-  });
-// Aggregate visits per user
-router.get('/analytics/visits/by-user', requireAdmin, (req, res) => {
-  const { start, end } = req.query;
-  const where = [];
-  const params = [];
-  if (start) { where.push('v.visited_at >= ?'); params.push(start); }
-  if (end) { where.push('v.visited_at <= ?'); params.push(end); }
-  const whereSql = where.length ? 'WHERE ' + where.join(' AND ') : '';
-  const sql = `SELECT COALESCE(u.username, 'Anonymous') AS username,
-                      v.user_id,
-                      COUNT(*) AS visits,
-                      MIN(v.visited_at) AS first_visit,
-                      MAX(v.visited_at) AS last_visit
-               FROM user_visits v
-               LEFT JOIN users u ON v.user_id = u.id
-               ${whereSql}
-               GROUP BY v.user_id
-               ORDER BY visits DESC`;
-  db.all(sql, params, (err, rows) => {
-    if (err) return res.status(500).json({ status: 'error', message: err.message });
-    res.json({ status: 'success', data: rows });
-  });
-});
-
-// --- Share submissions ---
-// Helper: fetch submission with user and assignment
-function getSubmissionById(id, cb) {
-  db.get(
-    `SELECT s.id, s.assignment_id, s.user_id, s.content, s.file_path, s.submitted_at,
-            u.username, u.email,
-            a.title AS assignment_title
-     FROM submissions s
-     LEFT JOIN users u ON s.user_id = u.id
-     LEFT JOIN assignments a ON s.assignment_id = a.id
-     WHERE s.id = ?`,
-    [id],
-    cb
-  );
-}
-
-// Email share: POST /share/submission/:id/email { to, subject?, message? }
-router.post('/share/submission/:id/email', requireAdmin, async (req, res) => {
-  const { id } = req.params;
-  const { to, subject, message } = req.body || {};
-  if (!to) return res.status(400).json({ status: 'error', message: 'Recipient email (to) is required' });
-
-  const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM } = process.env;
-  if (!SMTP_HOST || !SMTP_PORT || !SMTP_FROM) {
-    return res.status(400).json({ status: 'error', message: 'SMTP configuration missing (SMTP_HOST, SMTP_PORT, SMTP_FROM, optionally SMTP_USER/SMTP_PASS)' });
-  }
-
-  getSubmissionById(id, async (err, sub) => {
-    if (err) return res.status(500).json({ status: 'error', message: err.message });
-    if (!sub) return res.status(404).json({ status: 'error', message: 'Submission not found' });
-
-    try {
-      const transporter = nodemailer.createTransport({
-        host: SMTP_HOST,
-        port: Number(SMTP_PORT),
-        secure: Number(SMTP_PORT) === 465,
-        auth: SMTP_USER && SMTP_PASS ? { user: SMTP_USER, pass: SMTP_PASS } : undefined,
-      });
-
-      const attachments = [];
-      if (sub.file_path) {
-        const absPath = path.join(__dirname, '..', sub.file_path);
-        attachments.push({ filename: path.basename(absPath), path: absPath });
-      }
-
-      const info = await transporter.sendMail({
-        from: SMTP_FROM,
-        to,
-        subject: subject || `Assignment: ${sub.assignment_title} from ${sub.username}`,
-        text: (message || '') + `\n\nAssignment: ${sub.assignment_title}\nUser: ${sub.username}\nSubmitted: ${sub.submitted_at}\n\nContent:\n${sub.content || '(no text content)'}\n`,
-        attachments,
-      });
-
-      res.json({ status: 'success', messageId: info.messageId });
-    } catch (e) {
-      res.status(500).json({ status: 'error', message: e.message });
-    }
-  });
-});
-
-// PDF export: GET /share/submission/:id/pdf
-router.get('/share/submission/:id/pdf', requireAdmin, (req, res) => {
-  const { id } = req.params;
-  getSubmissionById(id, (err, sub) => {
-    if (err) return res.status(500).json({ status: 'error', message: err.message });
-    if (!sub) return res.status(404).json({ status: 'error', message: 'Submission not found' });
-
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="submission_${id}.pdf"`);
-    const doc = new PDFDocument({ margin: 50 });
-    doc.pipe(res);
-    doc.fontSize(18).text(`Assignment: ${sub.assignment_title}`, { underline: true });
-    doc.moveDown();
-    doc.fontSize(12).text(`User: ${sub.username} (ID ${sub.user_id})`);
-    doc.text(`Submitted: ${sub.submitted_at}`);
-    doc.moveDown();
-    doc.fontSize(14).text('Content');
-    doc.fontSize(12).text(sub.content || '(no text content)');
-    if (sub.file_path) {
-      doc.moveDown();
-      doc.fontSize(12).text(`Attached file: ${sub.file_path}`);
-    }
-    doc.end();
-  });
-});
-
-// Plain text DOC export (basic .doc as text) GET /share/submission/:id/doc
-router.get('/share/submission/:id/doc', requireAdmin, (req, res) => {
-  const { id } = req.params;
-  getSubmissionById(id, (err, sub) => {
-    if (err) return res.status(500).json({ status: 'error', message: err.message });
-    if (!sub) return res.status(404).json({ status: 'error', message: 'Submission not found' });
-    const content = `Assignment: ${sub.assignment_title}\nUser: ${sub.username} (ID ${sub.user_id})\nSubmitted: ${sub.submitted_at}\n\nContent:\n${sub.content || '(no text content)'}\n\nAttached file: ${sub.file_path || '(none)'}\n`;
-    res.setHeader('Content-Type', 'application/msword');
-    res.setHeader('Content-Disposition', `attachment; filename="submission_${id}.doc"`);
-    res.send(content);
-  });
-});
-
-// --- Exports: CSV ---
-function toCSV(rows){
-  if (!Array.isArray(rows) || rows.length === 0) return '';
-  const headers = Object.keys(rows[0]);
-  const escape = (v) => {
-    if (v == null) return '';
-    const s = String(v).replace(/"/g, '""');
-    return '"' + s + '"';
-  };
-  const lines = [headers.map(h => '"' + h + '"').join(',')];
-  for (const r of rows) {
-    lines.push(headers.map(h => escape(r[h])).join(','));
-  }
-  return lines.join('\n');
-}
-
-// Submissions CSV
-router.get('/exports/submissions.csv', requireAdmin, (req, res) => {
-  db.all(
-    `SELECT s.id, s.assignment_id, s.user_id, u.username, a.title AS assignment_title,
-            s.submitted_at, s.feedback, s.grade, s.file_path, s.content
-     FROM submissions s
-     LEFT JOIN users u ON s.user_id = u.id
-     LEFT JOIN assignments a ON s.assignment_id = a.id
-     ORDER BY s.submitted_at DESC`,
+    LEFT JOIN lessons l ON (a.lesson_id = l.id OR s.lesson_id = l.id)
+    ORDER BY s.submitted_at DESC`,
     [],
-    (err, rows) => {
-      if (err) return res.status(500).json({ status: 'error', message: err.message });
-      const csv = toCSV(rows);
-      res.setHeader('Content-Type', 'text/csv');
-      res.setHeader('Content-Disposition', 'attachment; filename="submissions.csv"');
-      res.send(csv);
+    (err, submissions) => {
+      if (err) {
+        console.error('Error fetching all submissions:', err);
+        return res.status(500).json({ status: 'error', message: 'Failed to fetch submissions' });
+      }
+      res.json({ status: 'success', data: submissions || [] });
     }
   );
 });
 
-// Visits CSV
-router.get('/exports/visits.csv', requireAdmin, (req, res) => {
-  db.all(
-    `SELECT v.id, v.user_id, u.username, v.path, v.method, v.user_agent, v.ip, v.visited_at
-     FROM user_visits v
-     LEFT JOIN users u ON v.user_id = u.id
-     ORDER BY v.id DESC`,
-    [],
-    (err, rows) => {
-      if (err) return res.status(500).json({ status: 'error', message: err.message });
-      const csv = toCSV(rows);
-      res.setHeader('Content-Type', 'text/csv');
-      res.setHeader('Content-Disposition', 'attachment; filename="visits.csv"');
-      res.send(csv);
-    }
-  );
-});
+// --- Admin: User activity overview (submissions, visits) ---
+router.get('/admin/users/:id/activity', requireAdmin, async (req, res) => {
+  const userId = req.params.id;
+  if (!userId) return res.status(400).json({ status: 'error', message: 'Invalid user ID' });
 
-// DOCX export: GET /share/submission/:id/docx
-router.get('/share/submission/:id/docx', requireAdmin, async (req, res) => {
-  const { id } = req.params;
-  getSubmissionById(id, async (err, sub) => {
-    if (err) return res.status(500).json({ status: 'error', message: err.message });
-    if (!sub) return res.status(404).json({ status: 'error', message: 'Submission not found' });
-    try {
-      const doc = new Document({
-        sections: [
-          {
-            properties: {},
-            children: [
-              new Paragraph({ children: [ new TextRun({ text: `Assignment: ${sub.assignment_title}`, bold: true, size: 28 }) ] }),
-              new Paragraph({ children: [ new TextRun({ text: `User: ${sub.username} (ID ${sub.user_id})`, size: 24 }) ] }),
-              new Paragraph({ children: [ new TextRun({ text: `Submitted: ${sub.submitted_at}`, size: 24 }) ] }),
-              new Paragraph({ children: [ new TextRun({ text: ' ', size: 24 }) ] }),
-              new Paragraph({ children: [ new TextRun({ text: 'Content', bold: true, size: 26 }) ] }),
-              new Paragraph({ children: [ new TextRun({ text: sub.content || '(no text content)', size: 24 }) ] }),
-              new Paragraph({ children: [ new TextRun({ text: ' ', size: 24 }) ] }),
-              new Paragraph({ children: [ new TextRun({ text: `Attached file: ${sub.file_path || '(none)'}`, size: 24 }) ] }),
-            ],
-          },
-        ],
-      });
-      const buffer = await Packer.toBuffer(doc);
-      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-      res.setHeader('Content-Disposition', `attachment; filename="submission_${id}.docx"`);
-      res.send(buffer);
-    } catch (e) {
-      res.status(500).json({ status: 'error', message: e.message });
-    }
-  });
-});
+  try {
+    // Submissions for the user
+    const submissions = await db.all(
+      `SELECT 
+        s.id,
+        s.lesson_id,
+        s.content,
+        s.submitted_at,
+        s.grade,
+        s.feedback,
+        l.week,
+        l.title as lesson_title
+      FROM submissions s
+      LEFT JOIN lessons l ON l.id = s.lesson_id
+      WHERE s.user_id = ?
+      ORDER BY s.submitted_at DESC`,
+      [userId]
+    );
 
-// --- CSV Exports ---
-function sendCSV(res, filename, headerRow, rows) {
-  res.setHeader('Content-Type', 'text/csv');
-  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-  const escape = (v) => {
-    if (v == null) return '';
-    const s = String(v);
-    if (s.includes(',') || s.includes('"') || s.includes('\n')) {
-      return '"' + s.replace(/"/g, '""') + '"';
-    }
-    return s;
-  };
-  const lines = [];
-  lines.push(headerRow.join(','));
-  for (const r of rows) {
-    lines.push(r.map(escape).join(','));
+    // Visits by the user
+    const visits = await db.all(
+      `SELECT id, path, visited_at FROM user_visits WHERE user_id = ? ORDER BY visited_at DESC`,
+      [userId]
+    );
+
+    res.json({ status: 'success', submissions, visits });
+  } catch (err) {
+    console.error('GET /admin/users/:id/activity error:', err);
+    res.status(500).json({ status: 'error', message: 'Server error' });
   }
-  res.send(lines.join('\n'));
-}
-
-// Submissions CSV
-router.get('/exports/submissions.csv', requireAdmin, (req, res) => {
-  const { start, end, user_id, assignment_id } = req.query;
-  const where = [];
-  const params = [];
-  if (start) { where.push('s.submitted_at >= ?'); params.push(start); }
-  if (end) { where.push('s.submitted_at <= ?'); params.push(end); }
-  if (user_id) { where.push('s.user_id = ?'); params.push(Number(user_id)); }
-  if (assignment_id) { where.push('s.assignment_id = ?'); params.push(Number(assignment_id)); }
-  const whereSql = where.length ? 'WHERE ' + where.join(' AND ') : '';
-  const sql = `SELECT s.id, s.assignment_id, s.user_id, u.username, a.title AS assignment_title,
-                      s.submitted_at, s.feedback, s.grade, s.file_path, s.content
-               FROM submissions s
-               LEFT JOIN users u ON s.user_id = u.id
-               LEFT JOIN assignments a ON s.assignment_id = a.id
-               ${whereSql}
-               ORDER BY s.submitted_at DESC`;
-  db.all(sql, params, (err, rows) => {
-    if (err) return res.status(500).json({ status: 'error', message: err.message });
-    const header = ['id','assignment_id','user_id','username','assignment_title','submitted_at','feedback','grade','file_path','content'];
-    const data = rows.map(r => [r.id, r.assignment_id, r.user_id, r.username, r.assignment_title, r.submitted_at, r.feedback, r.grade, r.file_path, r.content]);
-    sendCSV(res, 'submissions.csv', header, data);
-  });
 });
 
-// Visits CSV
-router.get('/exports/visits.csv', requireAdmin, (req, res) => {
-  const { start, end, path, user_id } = req.query;
-  const where = [];
-  const params = [];
-  if (start) { where.push('v.visited_at >= ?'); params.push(start); }
-  if (end) { where.push('v.visited_at <= ?'); params.push(end); }
-  if (path) { where.push('v.path LIKE ?'); params.push(`%${path}%`); }
-  if (user_id) { where.push('v.user_id = ?'); params.push(Number(user_id)); }
-  const whereSql = where.length ? 'WHERE ' + where.join(' AND ') : '';
-  const sql = `SELECT v.id, v.user_id, u.username, v.path, v.method, v.user_agent, v.ip, v.visited_at
-               FROM user_visits v
-               LEFT JOIN users u ON v.user_id = u.id
-               ${whereSql}
-               ORDER BY v.id DESC`;
-  db.all(sql, params, (err, rows) => {
-    if (err) return res.status(500).json({ status: 'error', message: err.message });
-    const header = ['id','user_id','username','path','method','user_agent','ip','visited_at'];
-    const data = rows.map(r => [r.id, r.user_id, r.username, r.path, r.method, r.user_agent, r.ip, r.visited_at]);
-    sendCSV(res, 'visits.csv', header, data);
-  });
-});
-
-// --- Deletes ---
-// Delete a submission by id
-router.delete('/submissions/:id', requireAdmin, (req, res) => {
-  const { id } = req.params;
-  db.run('DELETE FROM submissions WHERE id = ?', [id], function(err){
-    if (err) return res.status(500).json({ status: 'error', message: err.message });
-    res.json({ status: 'success', deleted: this.changes });
-  });
-});
-
-// Delete visits in a date range or by user_id
-router.delete('/analytics/visits', requireAdmin, (req, res) => {
-  const { start, end, user_id } = req.query;
-  const where = [];
-  const params = [];
-  if (start) { where.push('visited_at >= ?'); params.push(start); }
-  if (end)   { where.push('visited_at <= ?'); params.push(end); }
-  if (user_id) { where.push('user_id = ?'); params.push(Number(user_id)); }
-  if (!where.length) {
-    return res.status(400).json({ status: 'error', message: 'Provide at least one filter: start/end/user_id' });
+// Get single submission (Admin)
+router.get('/submissions/:id', requireAdmin, async (req, res) => {
+  const id = Number(req.params.id);
+  if (!id) return res.status(400).json({ status: 'error', message: 'Invalid submission id' });
+  try {
+    const submission = await db.get(
+      `SELECT s.*, u.username, u.email, l.week AS lesson_week, l.title AS lesson_title
+       FROM submissions s
+       LEFT JOIN users u ON s.user_id = u.id
+       LEFT JOIN lessons l ON s.lesson_id = l.id
+       WHERE s.id = ?`,
+      [id]
+    );
+    if (!submission) return res.status(404).json({ status: 'error', message: 'Submission not found' });
+    res.json({ status: 'success', data: submission });
+  } catch (err) {
+    console.error('GET /submissions/:id error:', err);
+    res.status(500).json({ status: 'error', message: 'Server error' });
   }
-  const sql = `DELETE FROM user_visits WHERE ${where.join(' AND ')}`;
-  db.run(sql, params, function(err){
-    if (err) return res.status(500).json({ status: 'error', message: err.message });
-    res.json({ status: 'success', deleted: this.changes });
-  });
 });
 
-// --- Issue Org Access Token (Admin) ---
-router.post('/orgs/:orgId/token', (req, res) => {
-  // Admin check (reuse simple guard)
+// Grade or provide feedback for a submission (Admin)
+router.put('/submissions/:id/grade', requireAdmin, async (req, res) => {
+  const id = Number(req.params.id);
+  if (!id) return res.status(400).json({ status: 'error', message: 'Invalid submission id' });
+  const { grade, feedback } = req.body || {};
+  if (grade === undefined || grade === null) {
+    return res.status(400).json({ status: 'error', message: 'Grade is required' });
+  }
+  const numericGrade = Number(grade);
+  if (isNaN(numericGrade) || numericGrade < 0 || numericGrade > 100) {
+    return res.status(400).json({ status: 'error', message: 'Grade must be a number between 0 and 100' });
+  }
+  try {
+    await db.run('UPDATE submissions SET grade = ?, feedback = ? WHERE id = ?', [numericGrade, feedback || null, id]);
+    // Optionally return updated submission
+    const updated = await db.get('SELECT * FROM submissions WHERE id = ?', [id]);
+    res.json({ status: 'success', message: 'Submission graded', data: updated });
+  } catch (err) {
+    console.error('PUT /submissions/:id/grade error:', err);
+    res.status(500).json({ status: 'error', message: 'Failed to grade submission' });
+  }
+});
+
+// --- Admin token: issue or refresh ---
+router.post('/admin/token', (req, res) => {
   if (!req.session || !req.session.user || String(req.session.user.role).toLowerCase() !== 'admin') {
     return res.status(403).json({ status: 'error', message: 'Admin access required' });
   }
-  const orgId = Number(req.params.orgId);
-  if(!orgId) return res.status(400).json({ status:'error', message:'Invalid orgId' });
+  const orgId = Number(req.body.orgId) || null;
+  const scope = (req.body.scope || 'read').split(',').map(s => s.trim()).filter(Boolean);
+  const ttl = Number(req.body.ttl) || 3600;
+  if(!orgId) return res.status(400).json({ status:'error', message:'orgId is required' });
   db.get('SELECT id, name, slug, status FROM organizations WHERE id = ?', [orgId], (err, org) => {
     if(err) return res.status(500).json({ status:'error', message: err.message });
     if(!org) return res.status(404).json({ status:'error', message:'Organization not found' });
-    const scope = (req.body && req.body.scope) || 'read';
-    const ttl = Number((req.body && req.body.ttlSec) || 1800);
     const token = signToken({ org_id: org.id, org_slug: org.slug, scope }, ttl);
     res.json({ status:'success', token, expires_in: ttl, link: `/org/access?token=${encodeURIComponent(token)}` });
   });
@@ -1352,7 +1026,7 @@ router.post('/ai/lesson-help', async (req, res) => {
 // Admin: Ask AI about platform features/navigation
 router.post('/ai/admin-help', async (req, res) => {
   const user = req.session && req.session.user;
-  if (!user || user.role !== 'admin') {
+  if (!user || String(user.role).toLowerCase() !== 'admin') {
     return res.status(403).json({ error: 'Admin access required.' });
   }
 
@@ -1409,46 +1083,38 @@ Platform Features:
 router.post('/ai/assignment-feedback', async (req, res) => {
   const user = req.session && req.session.user;
   if (!user) {
-    return res.status(401).json({ error: 'Please sign in to use AI feedback.' });
+    return res.status(401).json({ error: 'Please sign in to use AI assistance.' });
   }
 
+  // Rate limiting
   if (!checkAIRateLimit(user.id)) {
     return res.status(429).json({ 
-      error: 'AI usage limit reached. You can ask 10 questions per hour.' 
+      error: 'AI usage limit reached. You can ask 10 questions per hour. Please try again later.' 
     });
   }
 
   const { assignmentId, submission } = req.body;
   
-  if (!assignmentId || !submission || submission.trim().length < 10) {
-    return res.status(400).json({ error: 'Please provide assignment ID and your answer (min 10 characters).' });
+  if (!assignmentId || !submission || submission.trim().length < 3) {
+    return res.status(400).json({ error: 'Please provide a valid assignment ID and submission content.' });
   }
 
-  const sanitizedSubmission = sanitizeInput(submission.substring(0, 2000));
+  // Sanitize submission
+  const sanitizedSubmission = sanitizeInput(submission.substring(0, 500));
 
   try {
-    // Get assignment details
-    const assignment = await db.get(
-      'SELECT title, description FROM assignments WHERE id = ?',
+    // Get submission data from database
+    const submissionData = await db.get(
+      'SELECT id, assignment_id, user_id, content, file_path, submitted_at FROM submissions WHERE id = ?',
       [assignmentId]
     );
 
-    if (!assignment) {
-      return res.status(404).json({ error: 'Assignment not found.' });
+    if (!submissionData) {
+      return res.status(404).json({ error: 'Submission not found.' });
     }
 
-    const feedback = await aiHelper.reviewAssignment(
-      assignment.description || assignment.title,
-      sanitizedSubmission
-    );
-
-    // Log usage
-    await db.run(
-      `INSERT INTO ai_usage (user_id, org_id, type, question, response, created_at) 
-       VALUES (?, ?, ?, ?, ?, datetime('now'))`,
-      [user.id, req.session.org?.id || null, 'assignment-feedback', 
-       `Assignment: ${assignmentId}`, feedback]
-    );
+    // Generate AI feedback
+    const feedback = await aiHelper.provideAssignmentFeedback(submissionData, sanitizedSubmission);
 
     res.json({ 
       success: true, 
@@ -1458,64 +1124,9 @@ router.post('/ai/assignment-feedback', async (req, res) => {
   } catch (error) {
     console.error('AI Assignment Feedback Error:', error);
     res.status(500).json({ 
-      error: 'Unable to provide feedback. Please try again.' 
+      error: 'Unable to process your submission. Please try again or contact your instructor.' 
     });
   }
 });
 
-// Student: Simplify a difficult concept
-router.post('/ai/simplify', async (req, res) => {
-  const user = req.session && req.session.user;
-  if (!user) {
-    return res.status(401).json({ error: 'Please sign in.' });
-  }
-
-  if (!checkAIRateLimit(user.id)) {
-    return res.status(429).json({ 
-      error: 'AI usage limit reached. Try again in an hour.' 
-    });
-  }
-
-  const { concept } = req.body;
-  
-  if (!concept || concept.trim().length < 5) {
-    return res.status(400).json({ error: 'Please provide a concept to simplify.' });
-  }
-
-  const sanitizedConcept = sanitizeInput(concept.substring(0, 200));
-
-  try {
-    const explanation = await aiHelper.simplifyTopic(sanitizedConcept);
-
-    await db.run(
-      `INSERT INTO ai_usage (user_id, org_id, type, question, response, created_at) 
-       VALUES (?, ?, ?, ?, ?, datetime('now'))`,
-      [user.id, req.session.org?.id || null, 'simplify', sanitizedConcept, explanation]
-    );
-
-    res.json({ 
-      success: true, 
-      explanation,
-      remainingQuestions: 10 - (aiUsageTracker.get(`ai_${user.id}`)?.count || 0)
-    });
-  } catch (error) {
-    console.error('AI Simplify Error:', error);
-    res.status(500).json({ 
-      error: 'Unable to simplify. Please try again.' 
-    });
-  }
-});
-
-// ========================================
-// END AI HELPER ENDPOINTS
-// ========================================
-
-// --- Org Access: verify token, set session, redirect ---
-router.get('/org/access', (req, res) => {
-  const token = req.query && req.query.token;
-  const body = token && verifyToken(token);
-  if(!body) return res.status(400).send('Invalid or expired token');
-  // Attach org to session; user remains optional (view-only flows allowed)
-  req.session.org = { id: body.org_id, slug: body.org_slug, scope: body.scope };
-  res.redirect('/dashboard.html');
-});
+module.exports = router;

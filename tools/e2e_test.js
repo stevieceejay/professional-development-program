@@ -87,12 +87,16 @@ async function detectActivePort() {
 
     const username = 'e2e_user_' + Date.now();
     const email = username + '@example.test';
-    const password = 'Password123!';
+    const password = process.env.CI_PASSWORD;
+    if (!password) {
+      console.error('CI_PASSWORD is not set. Set CI_PASSWORD environment variable before running E2E tests.');
+      process.exit(1);
+    }
 
     // Try signing in with a known CI/test account first to avoid signup rate limits
     let cookieHeader = '';
     try {
-      const ciSigninBody = JSON.stringify({ username: 'e2e_ci_user', password: 'Password123!' });
+      const ciSigninBody = JSON.stringify({ username: 'e2e_ci_user', password: process.env.CI_PASSWORD });
       const ciSigninRes = await req('POST', '/api/signin', { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(ciSigninBody) }, ciSigninBody);
       if (ciSigninRes && ciSigninRes.statusCode === 200 && ciSigninRes.headers && ciSigninRes.headers['set-cookie']) {
         cookieHeader = ciSigninRes.headers['set-cookie'].map(c => c.split(';')[0]).join('; ');
@@ -136,11 +140,11 @@ async function detectActivePort() {
         console.error('Signin fallback error (will try CI fallback):', e);
       }
       // If signin fallback failed because account doesn't exist or wrong credentials,
-      // try a known CI/test account if present in repo (ci_test_user3 / Password123!)
+      // try a known CI/test account if present in repo (ci_test_user3)
       if (!cookieHeader) {
         console.log('Attempting known CI test account signin as last resort');
         try {
-          const ciBody = JSON.stringify({ username: 'ci_test_user3', password: 'Password123!' });
+          const ciBody = JSON.stringify({ username: 'ci_test_user3', password: process.env.CI_PASSWORD });
           const ciRes = await req('POST', '/api/signin', { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(ciBody) }, ciBody);
           console.log('CI signin status:', ciRes.statusCode);
           if (ciRes.headers && ciRes.headers['set-cookie']) {

@@ -27,7 +27,7 @@ This session focused on troubleshooting and resolving multiple cascading issues 
 **Solution:** 
 - Modified seed-user.js to include email field
 - Ran script to create 4 users:
-  - **admin** (Admin role) - username: admin, password: AdminPass123!
+  - **admin** (Admin role) - username: admin, password: set via `SEED_ADMIN_PASSWORD` environment variable (do not commit secrets)
   - alice (User role)
   - bob (User role)
   - charlie (User role)
@@ -67,7 +67,7 @@ app.use(helmet({
 - **Database:** backend/data/project.db
 - **Admin Credentials:** 
   - Username: `admin`
-  - Password: `AdminPass123!`
+  - Password: set via `SEED_ADMIN_PASSWORD` (do not store plaintext in repo)
   - Email: admin@example.test
   - Role: Admin
 

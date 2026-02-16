@@ -3,148 +3,105 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sign In | ARG Professional Development</title>
+  <title>Sign In - Professional Development</title>
   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="extracted-styles.css">
 </head>
-<body class="login-theme">
-  <!-- Main Content -->
-  <main class="login-container">
-    <div class="login-box">
-      <!-- Left side - Branding & Info -->
-      <div class="login-side">
-        <h3>ARG Professional Development 🚀</h3>
-        <p><strong>Grow Your Skills</strong></p>
-        <p>Professional development starts here. Learn, adapt, and thrive with cutting-edge courses and resources designed for your success.</p>
-        
-        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.2);">
-          <p><strong>New to ARG?</strong></p>
-          <p style="font-size: 0.9em; margin-bottom: 15px;">Contact your administrator to create an account and get started on your professional journey.</p>
+<body>
+  <header>
+    <nav class="navbar">
+      <a href="index.html">Home</a>
+      <a href="signin.html" class="active">Sign In</a>
+      <a href="signup.html">Sign Up</a>
+      <a href="dashboard.html">Dashboard</a>
+      <a href="lessons.html">Lessons</a>
+      <a href="admin.html">Admin</a>
+    </nav>
+  </header>
+
+  <div class="auth-container">
+    <div class="auth-card">
+      <h1>Sign In</h1>
+      <p>Welcome back! Sign in to continue your professional development journey.</p>
+      
+      <form id="signinForm">
+        <div class="form-group">
+          <label for="username">Username</label>
+          <input 
+            type="text" 
+            id="username" 
+            name="username" 
+            required 
+            placeholder="Enter your username"
+            autocomplete="username"
+          >
         </div>
-      </div>
 
-      <!-- Right side - Sign In Form -->
-      <div class="login-form">
-        <div class="login-header">
-          <img src="user-icon.svg" alt="User Icon" class="user-icon">
-          <h2>SIGN IN</h2>
-          <p style="margin: 5px 0 0 0; color: #aaa; font-size: 0.9em;">Welcome back!</p>
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input 
+            type="password" 
+            id="password" 
+            name="password" 
+            required 
+            placeholder="Enter your password"
+            autocomplete="current-password"
+          >
         </div>
 
-        <form id="signInForm">
-          <!-- Username/Email Field -->
-          <div class="input-group">
-            <label for="username">Username or Email</label>
-            <input 
-              type="text" 
-              id="username" 
-              name="username" 
-              placeholder="Enter your username or email"
-              required
-              autocomplete="username"
-            >
-          </div>
+        <button type="submit" class="btn btn-primary">Sign In</button>
+      </form>
 
-          <!-- Password Field -->
-          <div class="input-group">
-            <label for="password">Password</label>
-            <input 
-              type="password" 
-              id="password" 
-              name="password" 
-              placeholder="Enter your password"
-              required
-              autocomplete="current-password"
-            >
-          </div>
+      <div id="message" class="message"></div>
 
-          <!-- Options (Remember me & Forgot password) -->
-          <div class="options">
-            <label>
-              <input type="checkbox" name="remember" id="remember"> 
-              Remember me
-            </label>
-            <a href="#" class="forgot-link">Forgot password?</a>
-          </div>
-
-          <!-- Sign In Button -->
-          <button type="submit" class="sign-in-btn">SIGN IN</button>
-
-          <!-- Messages -->
-          <div id="signInMessage"></div>
-
-          <!-- Back to Home Link -->
-          <p style="text-align: center; margin-top: 20px; font-size: 0.9em;">
-            <a href="index.html" style="color: #8ab4f8; text-decoration: none;">← Back to Home</a>
-          </p>
-
-          <!-- Sign Up Link -->
-          <p style="text-align: center; font-size: 0.85em; color: #aaa;">
-            Don't have an account? <a href="signup.html" style="color: #8ab4f8; text-decoration: none;">Sign Up</a>
-          </p>
-        </form>
-      </div>
+      <p class="centered">Don't have an account? <a href="signup.html">Sign Up</a></p>
     </div>
-  </main>
+  </div>
 
-  <!-- Scripts -->
+  <!-- Copyright Footer -->
+  <footer class="site-footer">
+    <p class="bold">&copy; 2026 Stephen. All Rights Reserved.</p>
+    <p>Proprietary Software - All Rights Reserved</p>
+  </footer>
+
   <script>
-    // Sign In Form Handler
-    document.getElementById('signInForm').addEventListener('submit', async function(e) {
+    const form = document.getElementById('signinForm');
+    const messageDiv = document.getElementById('message');
+
+    form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const username = document.getElementById('username').value.trim();
+      
+      const username = document.getElementById('username').value;
       const password = document.getElementById('password').value;
-      const messageDiv = document.getElementById('signInMessage');
-
-      // Clear previous message
-      messageDiv.innerHTML = '';
-
-      // Validate inputs
-      if (!username || !password) {
-        messageDiv.innerHTML = '<p style="color: #ff6b6b; text-align: center;">Please enter both username and password.</p>';
-        return;
-      }
 
       try {
-        // Show loading state
-        const btn = document.querySelector('.sign-in-btn');
-        btn.disabled = true;
-        btn.textContent = 'Signing in...';
-
-        const res = await fetch('/api/login', {
+        const response = await fetch('/api/signin', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json'
+          },
           body: JSON.stringify({ username, password })
         });
 
-        const data = await res.json();
+        const data = await response.json();
 
-        if (data.status === 'success') {
-          messageDiv.innerHTML = '<p style="color: #4ade80; text-align: center;">✓ Sign in successful! Redirecting...</p>';
-          // Redirect based on role
+        if (response.ok) {
+          messageDiv.textContent = 'Sign in successful! Redirecting...';
+          messageDiv.className = 'message success';
+          
+          // Redirect based on user role
           setTimeout(() => {
-            window.location.href = data.user.role === 'Admin' ? 'admin.html' : 'dashboard.html';
+            window.location.href = data.user && String(data.user.role).toLowerCase() === 'admin' ? 'admin.html' : 'dashboard.html';
           }, 1000);
         } else {
-          messageDiv.innerHTML = `<p style="color: #ff6b6b; text-align: center;">✗ ${data.message || 'Sign in failed. Please try again.'}</p>`;
-          // Add shake animation to login box
-          document.querySelector('.login-box').classList.add('error');
-          setTimeout(() => {
-            document.querySelector('.login-box').classList.remove('error');
-          }, 500);
-          btn.disabled = false;
-          btn.textContent = 'SIGN IN';
+          messageDiv.textContent = data.error || 'Sign in failed';
+          messageDiv.className = 'message error';
         }
-      } catch (err) {
-        messageDiv.innerHTML = `<p style="color: #ff6b6b; text-align: center;">✗ Error: ${err.message}</p>`;
-        btn.disabled = false;
-        btn.textContent = 'SIGN IN';
+      } catch (error) {
+        console.error('Sign in error:', error);
+        messageDiv.textContent = 'An error occurred during sign in';
+        messageDiv.className = 'message error';
       }
-    });
-
-    // Forgot Password Link
-    document.querySelector('.forgot-link').addEventListener('click', function(e) {
-      e.preventDefault();
-      alert('Password recovery feature coming soon. Please contact your administrator.');
     });
   </script>
 </body>

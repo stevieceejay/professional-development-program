@@ -1,28 +1,37 @@
+  <main>
+    <div class="container">
+      
+    </div>
+  </main>
+  <script src="scripts.js?v=3"></script>
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Project Dashboard</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <section>
-      <h1>Welcome to ARG Professional Development</h1>
+      <h1>Welcome to The Professional Development Project</h1>
     <p><a href="signin.html">Sign In</a></p>
     <p><a href="dashboard.html">Dashboard</a></p>
+    <p><a href="lessons.html">Lessons</a></p>
     <p><a href="admin.html">Admin</a></p>
   </section>
 
   <section>
   <!-- Navigation -->
     <header>
-    <h1>ARG Professional Development</h1>
+    <h1>The Professional Development Project</h1>
     <p class="tagline">Grow your skills, adapt, and thrive 🚀</p>
     <nav class="navbar">
       <a href="index.html">Home</a>
       <a href="signin.html">Sign In</a>
       <a href="signup.html">Sign Up</a>
       <a href="dashboard.html">Dashboard</a>
+      <a href="lessons.html">Lessons</a>
       <a href="admin.html">Admin</a>
     </nav>
     
@@ -33,6 +42,9 @@
     <p>Below are the current projects pulled live from the database.</p>
     <div id="projectsOutput">Loading projects...</div>
     <button onclick="loadProjects()">Reload Projects</button>
+    <div style="margin-top:16px;">
+      <a href="/lessons" style="display:inline-block;padding:10px 14px;border-radius:6px;background:#2c7be5;color:#fff;text-decoration:none;">View Lessons (Videos)</a>
+    </div>
   </section>
 
   <!-- Admin Section -->
@@ -45,5 +57,17 @@
 
   <!-- Scripts -->
   <script src="scripts.js"></script>
+
+  <!-- Copyright Footer -->
+  <footer style="margin-top: 3rem; padding: 1.5rem 0; border-top: 2px solid #ddd; text-align: center; color: #666; background: #f9f9f9;">
+    <p style="margin: 0.5rem 0; font-weight: bold;">&copy; 2026 Stephen. All Rights Reserved.</p>
+    <p style="margin: 0.5rem 0; font-size: 0.9em;">
+      This platform and all educational content are protected by copyright law.
+      <br>Unauthorized use, reproduction, or distribution is prohibited.
+    </p>
+    <p style="margin: 0.5rem 0; font-size: 0.85em; color: #999;">
+      Professional Development Project platform | Proprietary Software
+    </p>
+  </footer>
 </body>
 </html>

@@ -7,7 +7,7 @@
  * See LICENSE file for full terms.
  */
 
-require('dotenv').config();
+require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
 const logger = require("./logger");
 const pinoHttp = require("pino-http");
 const express = require('express');
@@ -67,6 +67,7 @@ app.use(helmet({
     directives: {
       defaultSrc: ["'self'"],
       scriptSrc: ["'self'", "'unsafe-inline'"], // unsafe-inline needed for inline scripts
+      scriptSrcAttr: ["'unsafe-inline'"], // Allow inline event handlers like onclick
       styleSrc: ["'self'", "'unsafe-inline'"],
       imgSrc: ["'self'", "data:", "https:"],
       mediaSrc: ["'self'", "https:"], // For video content
@@ -100,20 +101,13 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 app.use(session({
-  name: 'sid', // Don't use default 'connect.sid' name
   secret: SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
-  rolling: true, // Reset expiration on each request
-  store: new SQLiteStore({
-    db: 'sessions.db',
-    dir: path.join(__dirname, 'data'),
-  }),
-  cookie: {
+  cookie: { 
+    secure: config.isProduction,  // true in production (HTTPS only), false in development
     httpOnly: true,
-    sameSite: 'strict',
-    secure: config.isProduction,
-    maxAge: 1000 * 60 * 60 * 24, // 24 hours
+    maxAge: 24 * 60 * 60 * 1000 // 24 hours
   }
 }));
 
@@ -295,28 +289,42 @@ app.get('/admin/guide', requireAdminMiddleware, (req, res) => {
 function start(port) {
   // Ensure port is a number and within valid range
   port = Number(port);
+  console.log(`[DEBUG] Attempting to start server on port: ${port}`);
+  console.log(`[DEBUG] Port type: ${typeof port}`);
+  console.log(`[DEBUG] Config port: ${config.port}`);
+  console.log(`[DEBUG] Environment: ${config.env}`);
+  
   if (isNaN(port) || port < 0 || port > 65535) {
     logger.error(`Invalid port: ${port}. Please check your configuration.`);
+    console.error(`[DEBUG] Invalid port detected: ${port}`);
     process.exit(1);
   }
+  
   const server = app.listen(port, () => {
+    console.log(`✓ Server is now listening on port ${port}`);
+    console.log(`✓ Access at: http://localhost:${port}`);
     logger.info(`Server running on port ${port} in ${config.env} mode`);
     if (config.isProduction) {
       logger.info('Production mode: Secure cookies enabled, full compression active');
     }
   });
+  
   server.on('error', (err) => {
+    console.error(`[DEBUG] Server error:`, err);
     if (err && err.code === 'EADDRINUSE') {
       const fallback = port + 1;
       if (fallback > 65535) {
         logger.error('No available ports in range 0-65535.');
         process.exit(1);
       }
-      logger.warn(`Port in use, retrying on ${fallback}`);
+      logger.warn(`Port ${port} in use, retrying on ${fallback}`);
+      console.log(`[DEBUG] Retrying on port ${fallback}`);
       start(fallback);
     } else {
       throw err;
     }
   });
 }
+
+console.log(`[DEBUG] Starting server with PORT: ${PORT}`);
 start(PORT);

@@ -2,15 +2,19 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Login | ARG Professional Development</title>
+  <title>Login | The Professional Development Project</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body class="login-theme">
   <!-- Shared Header -->
   <header>
-  <h1>ARG Professional Development</h1>
+  <h1>The Professional Development Project</h1>
   <p class="tagline">Grow your skills, adapt, and thrive 🚀</p>
   <nav class="navbar">
+    <div class="search-bar">
+      <input type="search" id="globalSearch" placeholder="Search terms, pages, weeks…" aria-label="Search site" />
+      <button class="btn btn-primary" id="globalSearchBtn">Search</button>
+    </div>
     <a href="index.html">Home</a>
     <a href="signin.html">Sign In</a>
     <a href="signup.html">Sign Up</a>
@@ -20,10 +24,7 @@
 </header>
 
   <!-- Main Content -->
-  <main class="login-container">
-    <div class="login-box">
-      <!-- Left side -->
-      <div class="login-side">
+    
         <h3>Grow Your Skills 📚</h3>
         <p>Professional development starts here.<br>
         Learn, adapt, and thrive with every login.</p>
@@ -65,11 +66,12 @@
   </main>
 
   <!-- Shared Footer -->
-  <footer>
-    <p>&copy; 2025 ARG Professional Development</p>
+  <footer class="site-footer">
+    <p class="bold">&copy; 2025 The Professional Development Project</p>
   </footer>
 
   <!-- Scripts -->
+  <link rel="stylesheet" href="extracted-styles.css">
   <script>
     document.getElementById('loginForm').addEventListener('submit', async function(e) {
       e.preventDefault();
@@ -87,15 +89,20 @@
         if (data.status === 'success') {
           window.location.href = data.user.role === 'Admin' ? 'admin.html' : 'dashboard.html';
         } else {
-          document.getElementById('loginMessage').innerHTML =
-            `<p style="color:red">${data.message}</p>`;
+          document.getElementById('loginMessage').innerHTML = `<p class="msg error">${data.message}</p>`;
         }
       } catch (err) {
-        document.getElementById('loginMessage').innerHTML =
-          `<p style="color:red">Error: ${err.message}</p>`;
+        document.getElementById('loginMessage').innerHTML = `<p class="msg error">Error: ${err.message}</p>`;
       }
     });
   </script>
   <script src="login.js"></script>
+  <footer style="margin-top: 3rem; padding: 1.5rem 0; border-top: 2px solid #ddd; text-align: center; color: #666; background: #f9f9f9;">
+    <p style="margin: 0.5rem 0; font-weight: bold;">&copy; 2026 Stephen. All Rights Reserved.</p>
+    <p style="margin: 0.5rem 0; font-size: 0.9em;">
+      This platform and all educational content are protected by copyright law.
+      <br>Unauthorized use, reproduction, or distribution is prohibited.
+    </p>
+  </footer>
 </body>
 </html>

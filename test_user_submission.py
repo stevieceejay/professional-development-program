@@ -1,15 +1,21 @@
 import requests
 import json
+import os
 
 # Configuration
-BASE_URL = "http://localhost:5000"  # Adjust to your backend URL
+BASE_URL = os.environ.get("TEST_BASE_URL", "http://localhost:5000")  # Adjust to your backend URL
 API_URL = f"{BASE_URL}/api"
 
 # Test user credentials - Bob from seed data
 TEST_USER = {
     "username": "bob",
     "email": "bob@example.test",
-    "password": "password123"
+    "password": os.environ.get("TEST_USER_PASSWORD")
+}
+
+if not TEST_USER["password"]:
+    print("✗ TEST_USER_PASSWORD environment variable is not set. Set it before running this test.")
+    exit(2)
 }
 
 def test_user_login():

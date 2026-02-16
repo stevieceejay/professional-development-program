@@ -7,7 +7,11 @@ const db = new sqlite3.Database(dbPath);
 
 const username = process.env.CI_USERNAME || 'e2e_ci_user';
 const email = process.env.CI_EMAIL || 'e2e_ci_user@example.test';
-const password = process.env.CI_PASSWORD || 'Password123!';
+const password = process.env.CI_PASSWORD;
+if (!password) {
+  console.error('CI_PASSWORD environment variable is required to create CI user.');
+  process.exit(1);
+}
 
 (async function(){
   try {

@@ -11,10 +11,10 @@ const fetch = require('node-fetch');
 class AIHelper {
   constructor() {
     this.apiKey = process.env.HUGGINGFACE_API_KEY;
-    this.apiUrl = 'https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.2';
+    this.apiUrl = 'https://router.huggingface.co/mistralai/Mistral-7B-Instruct-v0.2';
     
     // Fallback to free model if rate limited
-    this.fallbackUrl = 'https://api-inference.huggingface.co/models/google/flan-t5-large';
+    this.fallbackUrl = 'https://router.huggingface.co/google/flan-t5-large';
   }
 
   /**

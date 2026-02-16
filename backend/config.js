@@ -9,7 +9,7 @@
 // backend/config.js
 const path = require("path");
 const fs = require("fs");
-require("dotenv").config();
+require("dotenv").config({ path: path.join(__dirname, '..', '.env') });
 
 // Helper: fail fast with a clear message
 function requireEnv(name) {
@@ -40,7 +40,7 @@ if (IS_PRODUCTION && SESSION_SECRET === "change-me-please") {
 }
 
 // Optional but recommended
-const PORT = process.env.PORT || 4000;
+const PORT = process.env.PORT || 5000;
 
 // SMTP (optional but validated if partially provided)
 const SMTP = {
@@ -83,5 +83,6 @@ module.exports = {
   isProduction: IS_PRODUCTION,
 };
 
-const config = require("./config");
+// Note: do not require('./config') here (would recurse). Consumer modules should
+// `const config = require('./config')` themselves.
 

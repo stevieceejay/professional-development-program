@@ -127,11 +127,11 @@ async function run() {
     // Probe submissions (will require auth; expect 401 or 200, but not 404)
     if (!AUTH) {
       try {
-        const me = await requestJSON(port, '/api/submissions/me', { allowStatus: [401, 403] });
-        expect(me.statusCode === 200 || me.statusCode === 401 || me.statusCode === 403, 'submissions/me 200/401/403');
-        console.log(`- Submissions/me OK (status ${me.statusCode})`);
+        const me = await requestJSON(port, '/api/submissions/my', { allowStatus: [401, 403] });
+        expect(me.statusCode === 200 || me.statusCode === 401 || me.statusCode === 403, 'submissions/my 200/401/403');
+        console.log(`- Submissions/my OK (status ${me.statusCode})`);
       } catch (e) {
-        failures.push(`submissions/me: ${e.message}`);
+        failures.push(`submissions/my: ${e.message}`);
       }
     }
   }
@@ -181,17 +181,17 @@ async function run() {
       // Check submissions/me as authenticated (retry once on socket error)
       let meAuth;
       try {
-        meAuth = await requestJSON(port, '/api/submissions/me', { headers: sessionHeaders });
+        meAuth = await requestJSON(port, '/api/submissions/my', { headers: sessionHeaders });
       } catch (e) {
         if ((e.message || '').includes('ECONNRESET')) {
           await sleep(750);
-          meAuth = await requestJSON(port, '/api/submissions/me', { headers: sessionHeaders });
+          meAuth = await requestJSON(port, '/api/submissions/my', { headers: sessionHeaders });
         } else {
           throw e;
         }
       }
-      expect(meAuth.statusCode === 200 && meAuth.json?.status === 'success', 'submissions/me 200 success');
-      console.log(`- Submissions/me OK (items ${Array.isArray(meAuth.json?.data) ? meAuth.json.data.length : 0})`);
+      expect(meAuth.statusCode === 200 && (Array.isArray(meAuth.json) || meAuth.json?.status === 'success'), 'submissions/my 200 success');
+      console.log(`- Submissions/my OK (items ${Array.isArray(meAuth.json) ? meAuth.json.length : Array.isArray(meAuth.json?.data) ? meAuth.json.data.length : 0})`);
 
     } catch (e) {
       failures.push(`auth-mode: ${e.message}`);
