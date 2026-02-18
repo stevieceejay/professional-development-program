@@ -35,7 +35,7 @@ function sanitizeObject(obj) {
   
   const sanitized = {};
   for (const key in obj) {
-    if (obj.hasOwnProperty(key)) {
+    if (Object.prototype.hasOwnProperty.call(obj, key)) {
       sanitized[key] = typeof obj[key] === 'string' 
         ? sanitizeInput(obj[key]) 
         : obj[key];
@@ -152,7 +152,7 @@ function validatePasswordStrength(password) {
     errors.push('Password must contain at least one number');
   }
   
-  if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+  if (!/[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password)) {
     errors.push('Password must contain at least one special character');
   }
   
@@ -173,7 +173,7 @@ function detectSQLInjection(input) {
   const sqlPatterns = [
     /(\b(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|EXEC|EXECUTE|UNION|DECLARE)\b)/i,
     /(--|;|\/\*|\*\/|xp_|sp_)/i,
-    /('|\"|`)\s*(OR|AND)\s*\1/i,
+    /('|")\s*(OR|AND)\s*\1/i,
   ];
   
   return sqlPatterns.some(pattern => pattern.test(input));

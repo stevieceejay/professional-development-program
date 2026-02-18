@@ -95,6 +95,7 @@ async function detectActivePort() {
 
     // Try signing in with a known CI/test account first to avoid signup rate limits
     let cookieHeader = '';
+    let signupRes;
     try {
       const ciSigninBody = JSON.stringify({ username: 'e2e_ci_user', password: process.env.CI_PASSWORD });
       const ciSigninRes = await req('POST', '/api/signin', { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(ciSigninBody) }, ciSigninBody);
@@ -111,7 +112,7 @@ async function detectActivePort() {
     if (!cookieHeader) {
       console.log('Signing up user:', username);
       const signupBody = JSON.stringify({ username, email, password, confirmPassword: password });
-      const signupRes = await req('POST', '/api/signup', { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(signupBody) }, signupBody);
+      signupRes = await req('POST', '/api/signup', { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(signupBody) }, signupBody);
       console.log('Signup status:', signupRes.statusCode);
       console.log('Signup body:', signupRes.body);
 
@@ -194,7 +195,10 @@ async function detectActivePort() {
     console.log('Check body snippet:', checkRes.body ? checkRes.body.slice(0,300) : '');
     if (checkRes.statusCode === 200) {
       let arr = [];
-      try { arr = JSON.parse(checkRes.body); } catch (e) { arr = []; }
+      try {
+        const parsed = JSON.parse(checkRes.body);
+        arr = Array.isArray(parsed) ? parsed : (Array.isArray(parsed.data) ? parsed.data : []);
+      } catch (e) { arr = []; }
       const found = Array.isArray(arr) && arr.some(s => Number(s.lesson_id) === Number(lessonId));
       if (found) { console.log('E2E test succeeded'); process.exit(0); }
     }

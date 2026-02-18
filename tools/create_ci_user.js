@@ -13,18 +13,94 @@ if (!password) {
   process.exit(1);
 }
 
-(async function(){
+function closeDb(exitCode) {
+  db.close((err) => {
+    if (err) {
+      console.error('Failed to close DB cleanly:', err);
+      process.exit(1);
+    }
+    process.exit(exitCode);
+  });
+}
+
+function getOne(sql, params = []) {
+  return new Promise((resolve, reject) => {
+    db.get(sql, params, (err, row) => (err ? reject(err) : resolve(row)));
+  });
+}
+
+function run(sql, params = []) {
+  return new Promise((resolve, reject) => {
+    db.run(sql, params, function onRun(err) {
+      if (err) return reject(err);
+      return resolve({ lastID: this.lastID, changes: this.changes });
+    });
+  });
+}
+
+function getColumns(tableName) {
+  return new Promise((resolve, reject) => {
+    db.all(`PRAGMA table_info(${tableName})`, [], (err, rows) => {
+      if (err) return reject(err);
+      resolve(Array.isArray(rows) ? rows.map((r) => r.name) : []);
+    });
+  });
+}
+
+(async function main() {
   try {
     const hash = await bcrypt.hash(password, 10);
-    db.get('SELECT id FROM users WHERE username = ?', [username], (err, row) => {
-      if (err) { console.error('DB error', err); process.exit(1); }
-      if (row) { console.log('User already exists:', username); process.exit(0); }
-      const stmt = db.prepare('INSERT INTO users (username, email, password, role) VALUES (?, ?, ?, ?)');
-      stmt.run([username, email, hash, 'User'], function(err){
-        if (err) { console.error('Insert error', err); process.exit(1); }
-        console.log('Created test user:', username, 'id:', this.lastID);
-        process.exit(0);
-      });
-    });
-  } catch (e) { console.error('Error', e); process.exit(1); }
+    const userColumns = await getColumns('users');
+    const hasOrgId = userColumns.includes('org_id');
+
+    let orgId = 1;
+    if (hasOrgId) {
+      try {
+        const org = await getOne('SELECT id FROM organizations WHERE slug = ?', ['global']);
+        orgId = org && org.id ? org.id : 1;
+      } catch (_) {
+        orgId = 1;
+      }
+    }
+
+    const existing = await getOne(
+      'SELECT id, username, email FROM users WHERE username = ? OR email = ? LIMIT 1',
+      [username, email]
+    );
+
+    if (existing) {
+      if (hasOrgId) {
+        await run(
+          'UPDATE users SET username = ?, email = ?, password = ?, role = ?, org_id = ? WHERE id = ?',
+          [username, email, hash, 'User', orgId, existing.id]
+        );
+      } else {
+        await run(
+          'UPDATE users SET username = ?, email = ?, password = ?, role = ? WHERE id = ?',
+          [username, email, hash, 'User', existing.id]
+        );
+      }
+      console.log('Updated CI user:', username, 'id:', existing.id);
+      closeDb(0);
+      return;
+    }
+
+    let created;
+    if (hasOrgId) {
+      created = await run(
+        'INSERT INTO users (username, email, password, role, org_id) VALUES (?, ?, ?, ?, ?)',
+        [username, email, hash, 'User', orgId]
+      );
+    } else {
+      created = await run(
+        'INSERT INTO users (username, email, password, role) VALUES (?, ?, ?, ?)',
+        [username, email, hash, 'User']
+      );
+    }
+    console.log('Created CI user:', username, 'id:', created.lastID);
+    closeDb(0);
+  } catch (err) {
+    console.error('CI user seed error:', err);
+    closeDb(1);
+  }
 })();

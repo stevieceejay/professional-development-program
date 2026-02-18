@@ -91,11 +91,49 @@ $env:PORT=4001; node server.js
 - Backend: Routes in `backend/routes/`, server in `backend/server.js`
 - Docs: Markdown under `docs/` (served statically and via backend)
 
+## CI (GitHub Actions)
+- Workflow: `.github/workflows/ci.yml`
+- Runs: `actionlint`, install, build, server health check, and smoke tests on push/PR.
+- Optional E2E: runs only when Actions secret `CI_PASSWORD` is configured.
+
+### Required Secrets
+- `CI_PASSWORD`: password used by `tools/create_ci_user.js` and `tools/e2e_focus_test.js`.
+
+### Local parity commands (PowerShell)
+```powershell
+$env:SESSION_SECRET="local-test-secret"
+$env:PORT="4000"
+npm start
+
+# in another terminal
+npm run smoke -- --port=4000
+```
+
 ## Licensing
 This project is licensed under the MIT License (see `LICENSE`).
 
 Commercial licensing is available using the EULA template in `docs/EULA.md`.
 We can adapt terms for seats, support SLAs, and pricing.
+
+## Security & Secrets Management
+
+**Never commit `.env` or credentials to git.**
+
+- **Local Development**: Create `.env` (use `env.example` as template), add to `.gitignore`
+- **GitHub Actions**: Store secrets via `Settings` → `Secrets and variables` → `Actions`
+- **Production**: Use environment variables or platform-specific secret management
+
+### Required Production Secrets
+
+Set these as GitHub Actions secrets or environment variables:
+- `SESSION_SECRET` — cryptographic session key (32+ bytes, hex-encoded)
+- `HUGGINGFACE_API_KEY` — AI tutor API token (optional)
+- `SMTP_HOST`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` — email config (optional)
+- `CI_PASSWORD` — for E2E tests in CI
+
+**Secret Scan**: The workflow [`.github/workflows/secret-scan.yml`](.github/workflows/secret-scan.yml) uses **gitleaks** to detect accidental credential commits.
+
+See [SECURITY_SECRETS_GUIDE.md](SECURITY_SECRETS_GUIDE.md) for comprehensive security practices, rotation procedures, and production deployment patterns.
 
 ## Status Checks (Windows PowerShell)
 ```powershell

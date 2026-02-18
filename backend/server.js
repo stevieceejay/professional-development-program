@@ -29,15 +29,6 @@ const db = new sqlite3.Database(
     if (err) console.error(err);
     else {
       console.log('Connected to SQLite database at', dbPath);
-
-      // TEMP: Log users table
-      db.all("SELECT * FROM users", (err, rows) => {
-        if (err) {
-          console.error("Error querying users table:", err.message);
-        } else {
-          console.log("Users table:", rows);
-        }
-      });
     }
   }
 );
@@ -49,6 +40,10 @@ const SESSION_SECRET = config.sessionSecret;
 const PORT = config.port;
 
 const app = express();
+
+if (config.isProduction) {
+  app.set('trust proxy', 1);
+}
 
 app.use(
   pinoHttp({
@@ -66,8 +61,8 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'"], // unsafe-inline needed for inline scripts
-      scriptSrcAttr: ["'unsafe-inline'"], // Allow inline event handlers like onclick
+      scriptSrc: config.isProduction ? ["'self'"] : ["'self'", "'unsafe-inline'"],
+      scriptSrcAttr: config.isProduction ? ["'none'"] : ["'unsafe-inline'"],
       styleSrc: ["'self'", "'unsafe-inline'"],
       imgSrc: ["'self'", "data:", "https:"],
       mediaSrc: ["'self'", "https:"], // For video content
@@ -80,11 +75,11 @@ app.use(helmet({
       upgradeInsecureRequests: config.isProduction ? [] : null,
     },
   },
-  hsts: {
+  hsts: config.isProduction ? {
     maxAge: 31536000, // 1 year
     includeSubDomains: true,
     preload: true,
-  },
+  } : false,
   noSniff: true,
   referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
   xssFilter: true,
@@ -104,9 +99,16 @@ app.use(session({
   secret: SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
+  proxy: config.isProduction,
+  store: new SQLiteStore({
+    db: 'sessions.db',
+    dir: path.join(__dirname, 'data'),
+    table: 'sessions',
+  }),
   cookie: { 
     secure: config.isProduction,  // true in production (HTTPS only), false in development
     httpOnly: true,
+    sameSite: 'lax',
     maxAge: 24 * 60 * 60 * 1000 // 24 hours
   }
 }));
@@ -194,8 +196,8 @@ const signupLimiter = rateLimit({
 });
 
 const uploadLimiter = rateLimit({ 
-  windowMs: 15 * 60 * 1000, 
-  max: 50, // Reduced from 100 for better protection
+  windowMs: 60 * 1000,
+  max: 3,
   message: { error: 'Too many upload requests. Please try again later.' },
   standardHeaders: true, 
   legacyHeaders: false,

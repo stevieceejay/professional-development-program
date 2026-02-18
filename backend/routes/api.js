@@ -15,6 +15,8 @@ const fsPromises = fs.promises;
 const marked = require('marked');
 const bcrypt = require('bcrypt');
 const db = require('../data/db');
+const dbPromise = require('../data/db-promise');
+const { success, error: sendError } = require('../utils/response');
 const multer = require('multer');
 const os = require('os');
 const { sanitizeInput, isValidEmail, isValidUsername, validatePasswordStrength } = require('../middleware/security');
@@ -92,7 +94,7 @@ router.post('/signup', (req, res) => {
   let { username, email, password, confirmPassword } = req.body;
 
   if (!username || !email || !password || !confirmPassword) {
-    return res.status(400).json({ status: 'error', message: 'All fields are required' });
+    return sendError(res, 400, 'All fields are required');
   }
 
   // Sanitize inputs
@@ -101,31 +103,28 @@ router.post('/signup', (req, res) => {
 
   // Validate username format
   if (!isValidUsername(username)) {
-    return res.status(400).json({ 
-      status: 'error', 
-      message: 'Username must be 3-30 characters and contain only letters, numbers, underscores, or hyphens' 
-    });
+    return sendError(res, 400, 'Username must be 3-30 characters and contain only letters, numbers, underscores, or hyphens');
   }
 
   // Validate email format
   if (!isValidEmail(email)) {
-    return res.status(400).json({ status: 'error', message: 'Invalid email format' });
+    return sendError(res, 400, 'Invalid email format');
   }
 
   if (password !== confirmPassword) {
-    return res.status(400).json({ status: 'error', message: 'Passwords do not match' });
+    return sendError(res, 400, 'Passwords do not match');
   }
 
   // Basic password validation (keep simple for now, or use validatePasswordStrength for stricter)
   if (password.length < 8) {
-    return res.status(400).json({ status: 'error', message: 'Password must be at least 8 characters' });
+    return sendError(res, 400, 'Password must be at least 8 characters');
   }
 
   // Hash password
   bcrypt.hash(password, 10, (err, hashedPassword) => {
     if (err) {
       console.error('Hashing error:', err);
-      return res.status(500).json({ status: 'error', message: 'Error creating account' });
+      return sendError(res, 500, 'Error creating account');
     }
 
     const stmt = db.prepare(`
@@ -139,7 +138,7 @@ router.post('/signup', (req, res) => {
         if (err.message && err.message.includes('UNIQUE constraint failed')) {
           errMsg = 'Username or email already exists';
         }
-        return res.status(400).json({ status: 'error', message: errMsg });
+        return sendError(res, 400, errMsg);
       }
 
       // Auto-login after signup — regenerate session to avoid fixation and
@@ -149,19 +148,11 @@ router.post('/signup', (req, res) => {
         if (regenErr) {
           console.error('Session regeneration error on signup:', regenErr);
           // Still return success but warn client to sign in manually
-          return res.json({
-            status: 'success',
-            message: 'Account created, please sign in.',
-            user: newUser
-          });
+          return success(res, 201, { user: newUser }, 'Account created, please sign in.');
         }
 
         req.session.user = newUser;
-        return res.json({
-          status: 'success',
-          message: 'Account created successfully! Welcome!',
-          user: newUser
-        });
+        return success(res, 201, { user: newUser }, 'Account created successfully! Welcome!');
       });
     });
     stmt.finalize();
@@ -173,7 +164,7 @@ function signInHandler(req, res) {
   let { username, password } = req.body;
 
   if (!username || !password) {
-    return res.status(400).json({ status: 'error', message: 'Username and password are required' });
+    return sendError(res, 400, 'Username and password are required');
   }
 
   // Sanitize input
@@ -186,41 +177,37 @@ function signInHandler(req, res) {
     (err, user) => {
       if (err) {
         console.error('DB error:', err);
-        return res.status(500).json({ status: 'error', message: 'Error signing in' });
+        return sendError(res, 500, 'Error signing in');
       }
 
       if (!user) {
         // Use same message to prevent username enumeration
-        return res.status(401).json({ status: 'error', message: 'Invalid username or password' });
+        return sendError(res, 401, 'Invalid username or password');
       }
 
       // Compare password with hash
       bcrypt.compare(password, user.password, (err, isMatch) => {
         if (err) {
           console.error('Bcrypt error:', err);
-          return res.status(500).json({ status: 'error', message: 'Error signing in' });
+          return sendError(res, 500, 'Error signing in');
         }
 
         if (!isMatch) {
           // Same message as above to prevent timing attacks
-          return res.status(401).json({ status: 'error', message: 'Invalid username or password' });
+          return sendError(res, 401, 'Invalid username or password');
         }
 
         // Regenerate session ID to prevent session fixation
         req.session.regenerate((regenerateErr) => {
           if (regenerateErr) {
             console.error('Session regeneration error:', regenerateErr);
-            return res.status(500).json({ status: 'error', message: 'Error signing in' });
+            return sendError(res, 500, 'Error signing in');
           }
 
           // Store session
           req.session.user = { id: user.id, username: user.username, email: user.email, role: user.role };
           
-          res.json({
-            status: 'success',
-            message: 'Signed in successfully!',
-            user: { id: user.id, username: user.username, email: user.email, role: user.role }
-          });
+          return success(res, 200, { user: { id: user.id, username: user.username, email: user.email, role: user.role } }, 'Signed in successfully!');
         });
       });
     });
@@ -235,18 +222,18 @@ router.put('/lessons/:week', (req, res) => {
   const { title, description, video_url } = req.body || {};
 
   if (!week || week < 1 || week > 52) {
-    return res.status(400).json({ status: 'error', message: 'Invalid week' });
+    return sendError(res, 400, 'Invalid week');
   }
 
   // Optional: simple admin guard if session has role Admin
   if (!req.session || !req.session.user || String(req.session.user.role).toLowerCase() !== 'admin') {
-    return res.status(403).json({ status: 'error', message: 'Admin access required' });
+    return sendError(res, 403, 'Admin access required');
   }
 
   db.get('SELECT id FROM lessons WHERE week = ?', [week], (err, row) => {
     if (err) {
       console.error('DB error:', err);
-      return res.status(500).json({ status: 'error', message: 'Database error' });
+      return sendError(res, 500, 'Database error');
     }
     const fields = [];
     const values = [];
@@ -255,7 +242,7 @@ router.put('/lessons/:week', (req, res) => {
     if (typeof video_url === 'string') { fields.push('video_url = ?'); values.push(video_url); }
 
     if (fields.length === 0) {
-      return res.status(400).json({ status: 'error', message: 'No updatable fields provided' });
+      return sendError(res, 400, 'No updatable fields provided');
     }
 
     if (row) {
@@ -264,9 +251,9 @@ router.put('/lessons/:week', (req, res) => {
       db.run(sql, values, function (uErr) {
         if (uErr) {
           console.error('Update error:', uErr);
-          return res.status(500).json({ status: 'error', message: 'Failed to update lesson' });
+          return sendError(res, 500, 'Failed to update lesson');
         }
-        return res.json({ status: 'success', message: `Updated Week ${week} lesson`, id: row.id });
+        return success(res, 200, { id: row.id }, `Updated Week ${week} lesson`);
       });
     } else {
       // If no row exists, insert with provided fields
@@ -282,9 +269,9 @@ router.put('/lessons/:week', (req, res) => {
         function (iErr) {
           if (iErr) {
             console.error('Insert error:', iErr);
-            return res.status(500).json({ status: 'error', message: 'Failed to create lesson' });
+            return sendError(res, 500, 'Failed to create lesson');
           }
-          return res.json({ status: 'success', message: `Created Week ${week} lesson`, id: this.lastID });
+          return success(res, 200, { id: this.lastID }, `Created Week ${week} lesson`);
         }
       );
     }
@@ -297,7 +284,7 @@ function requireAdmin(req, res, next) {
   if (role && String(role).toLowerCase() === 'admin') {
     return next();
   }
-  return res.status(403).json({ status: 'error', message: 'Forbidden: Admins only' });
+  return sendError(res, 403, 'Forbidden: Admins only');
 }
 
 // (session route defined later once; duplicate removed)
@@ -305,31 +292,31 @@ function requireAdmin(req, res, next) {
 // --- Organizations (Admin) ---
 router.get('/orgs', (req, res) => {
   if (!req.session || !req.session.user || String(req.session.user.role).toLowerCase() !== 'admin') {
-    return res.status(403).json({ status: 'error', message: 'Admin access required' });
+    return sendError(res, 403, 'Admin access required');
   }
   db.all('SELECT id, name, slug, status, created_at FROM organizations ORDER BY id', [], (err, rows) => {
-    if (err) return res.status(500).json({ status: 'error', message: err.message });
-    res.json({ status: 'success', data: rows });
+    if (err) return sendError(res, 500, err.message);
+    return success(res, 200, rows);
   });
 });
 
 router.post('/orgs', (req, res) => {
   if (!req.session || !req.session.user || String(req.session.user.role).toLowerCase() !== 'admin') {
-    return res.status(403).json({ status: 'error', message: 'Admin access required' });
+    return sendError(res, 403, 'Admin access required');
   }
   const { name, slug, status } = req.body || {};
-  if (!name || !slug) return res.status(400).json({ status: 'error', message: 'name and slug required' });
+  if (!name || !slug) return sendError(res, 400, 'name and slug required');
   const stmt = db.prepare('INSERT INTO organizations (name, slug, status) VALUES (?, ?, ?)');
   stmt.run([name, slug, status || 'active'], function (err) {
-    if (err) return res.status(500).json({ status: 'error', message: err.message });
-    res.json({ status: 'success', id: this.lastID });
+    if (err) return sendError(res, 500, err.message);
+    return success(res, 201, { id: this.lastID });
   });
   stmt.finalize();
 });
 
 router.put('/orgs/:id', (req, res) => {
   if (!req.session || !req.session.user || String(req.session.user.role).toLowerCase() !== 'admin') {
-    return res.status(403).json({ status: 'error', message: 'Admin access required' });
+    return sendError(res, 403, 'Admin access required');
   }
   const { id } = req.params;
   const { name, slug, status } = req.body || {};
@@ -338,23 +325,23 @@ router.put('/orgs/:id', (req, res) => {
   if (typeof name === 'string') { fields.push('name = ?'); values.push(name); }
   if (typeof slug === 'string') { fields.push('slug = ?'); values.push(slug); }
   if (typeof status === 'string') { fields.push('status = ?'); values.push(status); }
-  if (!fields.length) return res.status(400).json({ status: 'error', message: 'No fields to update' });
+  if (!fields.length) return sendError(res, 400, 'No fields to update');
   const sql = `UPDATE organizations SET ${fields.join(', ')} WHERE id = ?`;
   values.push(id);
   db.run(sql, values, function (err) {
-    if (err) return res.status(500).json({ status: 'error', message: err.message });
-    res.json({ status: 'success', updated: this.changes });
+    if (err) return sendError(res, 500, err.message);
+    return success(res, 200, { updated: this.changes });
   });
 });
 
 router.delete('/orgs/:id', (req, res) => {
   if (!req.session || !req.session.user || String(req.session.user.role).toLowerCase() !== 'admin') {
-    return res.status(403).json({ status: 'error', message: 'Admin access required' });
+    return sendError(res, 403, 'Admin access required');
   }
   const { id } = req.params;
   db.run('DELETE FROM organizations WHERE id = ?', [id], function (err) {
-    if (err) return res.status(500).json({ status: 'error', message: err.message });
-    res.json({ status: 'success', deleted: this.changes });
+    if (err) return sendError(res, 500, err.message);
+    return success(res, 200, { deleted: this.changes });
   });
 });
 
@@ -364,24 +351,24 @@ router.get('/projects', (req, res) => {
   const sql = orgId ? 'SELECT * FROM projects WHERE org_id = ? ORDER BY id' : 'SELECT * FROM projects ORDER BY id';
   const params = orgId ? [orgId] : [];
   db.all(sql, params, (err, rows) => {
-    if (err) return res.status(500).json({ status: 'error', message: err.message });
-    res.json({ status: 'success', data: rows });
+    if (err) return sendError(res, 500, err.message);
+    return success(res, 200, rows);
   });
 });
 
 // --- Logout ---
 router.post('/logout', (req, res) => {
   req.session.destroy(() => {
-    res.json({ status: 'success', message: 'Logged out' });
+    return success(res, 200, {}, 'Logged out');
   });
 });
 
 // --- Session info ---
 router.get('/session', (req, res) => {
   if (req.session && req.session.user) {
-    return res.json({ status: 'success', data: req.session.user });
+    return success(res, 200, req.session.user);
   }
-  return res.status(200).json({ status: 'error', message: 'No active session' });
+  return sendError(res, 200, 'No active session');
 });
 
 // --- CRUD: Users (Admin only) ---
@@ -389,7 +376,7 @@ router.get('/session', (req, res) => {
   router.get('/users', async (req, res) => {
     try {
       if (!req.session || !req.session.user || String(req.session.user.role).toLowerCase() !== 'admin') {
-        return res.status(403).json({ status: 'error', message: 'Admin required' });
+        return sendError(res, 403, 'Admin required');
       }
       const orgId = getSessionOrgId(req);
       const { limit = 100, offset = 0, role, status, email, q } = req.query;
@@ -420,29 +407,29 @@ router.get('/session', (req, res) => {
         role: r.role,
         status: r.status,
       }));
-      res.json({ status: 'success', data });
+      return success(res, 200, data);
     } catch (err) {
       console.error('GET /api/users failed', err);
-      res.status(500).json({ status: 'error', message: 'Server error' });
+      return sendError(res, 500, 'Server error');
     }
   });
 router.post('/users', requireAdmin, (req, res) => {
   const { username, email, role, password } = req.body;
   if (!username || !email || !role) {
-    return res.status(400).json({ error: 'Missing required fields' });
+    return sendError(res, 400, 'Missing required fields');
   }
   
   // Hash default password if not provided
   const defaultPassword = password || 'Welcome123';
   bcrypt.hash(defaultPassword, 10, (err, hashedPassword) => {
     if (err) {
-      return res.status(500).json({ error: 'Error creating user' });
+      return sendError(res, 500, 'Error creating user');
     }
     
     const stmt = db.prepare(`INSERT INTO users (username, email, password, role, created_at) VALUES (?, ?, ?, ?, datetime('now'))`);
     stmt.run([username, email, hashedPassword, role], function (err) {
-      if (err) return res.status(500).json({ error: err.message });
-      res.json({ id: this.lastID, username, email, role });
+      if (err) return sendError(res, 500, err.message);
+      return success(res, 201, { id: this.lastID, username, email, role });
     });
     stmt.finalize();
   });
@@ -455,8 +442,8 @@ router.put('/users/:id', requireAdmin, (req, res) => {
     `UPDATE users SET username=?, email=?, role=? WHERE id=?`,
     [username, email, role, id],
     function (err) {
-      if (err) return res.status(500).json({ error: err.message });
-      res.json({ updated: this.changes });
+      if (err) return sendError(res, 500, err.message);
+      return success(res, 200, { updated: this.changes });
     }
   );
 });
@@ -464,8 +451,8 @@ router.put('/users/:id', requireAdmin, (req, res) => {
 router.delete('/users/:id', requireAdmin, (req, res) => {
   const { id } = req.params;
   db.run(`DELETE FROM users WHERE id=?`, [id], function (err) {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json({ deleted: this.changes });
+    if (err) return sendError(res, 500, err.message);
+    return success(res, 200, { deleted: this.changes });
   });
 });
 
@@ -473,7 +460,7 @@ router.delete('/users/:id', requireAdmin, (req, res) => {
 router.get('/users/me', (req, res) => {
   try {
     if (!req.session || !req.session.user) {
-      return res.status(401).json({ error: 'Not authenticated' });
+      return sendError(res, 401, 'Not authenticated');
     }
 
     // Get full user details from database
@@ -483,19 +470,19 @@ router.get('/users/me', (req, res) => {
       (err, user) => {
         if (err) {
           console.error('Error fetching current user:', err);
-          return res.status(500).json({ error: 'Failed to fetch user' });
+          return sendError(res, 500, 'Failed to fetch user');
         }
 
         if (!user) {
-          return res.status(404).json({ error: 'User not found' });
+          return sendError(res, 404, 'User not found');
         }
 
-        res.json(user);
+        return success(res, 200, user);
       }
     );
   } catch (error) {
     console.error('Error fetching current user:', error);
-    res.status(500).json({ error: 'Failed to fetch user' });
+    return sendError(res, 500, 'Failed to fetch user');
   }
 });
 
@@ -505,32 +492,32 @@ router.get('/lessons', (req, res) => {
   const sql = orgId ? 'SELECT * FROM lessons WHERE org_id = ? ORDER BY week, id' : 'SELECT * FROM lessons ORDER BY week, id';
   const params = orgId ? [orgId] : [];
   db.all(sql, params, (err, rows) => {
-    if (err) return res.status(500).json({ status: 'error', message: err.message });
-    res.json({ status: 'success', data: rows });
+    if (err) return sendError(res, 500, err.message);
+    return success(res, 200, rows);
   });
 });
 
 router.get('/lessons/:id', (req, res) => {
   const { id } = req.params;
   db.get('SELECT * FROM lessons WHERE id = ?', [id], (err, row) => {
-    if (err) return res.status(500).json({ status: 'error', message: err.message });
-    if (!row) return res.status(404).json({ status: 'error', message: 'Lesson not found' });
-    res.json({ status: 'success', data: row });
+    if (err) return sendError(res, 500, err.message);
+    if (!row) return sendError(res, 404, 'Lesson not found');
+    return success(res, 200, row);
   });
 });
 
 router.post('/lessons', requireAdmin, (req, res) => {
   const { title, description, video_url } = req.body;
   if (!title || !video_url) {
-    return res.status(400).json({ status: 'error', message: 'Title and video_url are required' });
+    return sendError(res, 400, 'Title and video_url are required');
   }
   const stmt = db.prepare(`
     INSERT INTO lessons (title, description, video_url)
     VALUES (?, ?, ?)
   `);
   stmt.run([title, description || null, video_url], function (err) {
-    if (err) return res.status(500).json({ status: 'error', message: err.message });
-    res.json({ status: 'success', id: this.lastID });
+    if (err) return sendError(res, 500, err.message);
+    return success(res, 201, { id: this.lastID });
   });
   stmt.finalize();
 });
@@ -540,7 +527,7 @@ router.post('/lessons', requireAdmin, (req, res) => {
 // Middleware to check if user is admin
 const isAdmin = (req, res, next) => {
   if (!req.session || !req.session.user || String(req.session.user.role).toLowerCase() !== 'admin') {
-    return res.status(403).json({ error: 'Admin access required' });
+    return sendError(res, 403, 'Admin access required');
   }
   next();
 };
@@ -552,29 +539,28 @@ router.post('/lessons/:id/video', isAdmin, upload.single('video'), async (req, r
     const videoFile = req.file;
 
     if (!videoFile) {
-      return res.status(400).json({ error: 'No video file uploaded' });
+      return sendError(res, 400, 'No video file uploaded');
     }
 
     const videoUrl = `/uploads/videos/${videoFile.filename}`;
 
-    const result = await db.run(
+    const result = await dbPromise.run(
       'UPDATE lessons SET video_url = ? WHERE id = ?',
       [videoUrl, lessonId]
     );
 
     if (result.changes === 0) {
       await fs.unlink(videoFile.path);
-      return res.status(404).json({ error: 'Lesson not found' });
+      return sendError(res, 404, 'Lesson not found');
     }
 
-    res.json({
-      message: 'Video uploaded successfully',
+    return success(res, 200, {
       video_url: videoUrl,
       filename: videoFile.filename
-    });
+    }, 'Video uploaded successfully');
   } catch (error) {
     console.error('Error uploading video:', error);
-    res.status(500).json({ error: 'Failed to upload video' });
+    return sendError(res, 500, 'Failed to upload video');
   }
 });
 
@@ -583,23 +569,23 @@ router.get('/lessons/:id/video', async (req, res) => {
   try {
     const lessonId = req.params.id;
     
-    const lesson = await db.get(
+    const lesson = await dbPromise.get(
       'SELECT video_url FROM lessons WHERE id = ?',
       [lessonId]
     );
 
     if (!lesson) {
-      return res.status(404).json({ error: 'Lesson not found' });
+      return sendError(res, 404, 'Lesson not found');
     }
 
     if (!lesson.video_url) {
-      return res.status(404).json({ error: 'No video for this lesson' });
+      return sendError(res, 404, 'No video for this lesson');
     }
 
-    res.json({ video_url: lesson.video_url });
+    return success(res, 200, { video_url: lesson.video_url });
   } catch (error) {
     console.error('Error fetching video:', error);
-    res.status(500).json({ error: 'Failed to fetch video' });
+    return sendError(res, 500, 'Failed to fetch video');
   }
 });
 
@@ -608,17 +594,17 @@ router.delete('/lessons/:id/video', isAdmin, async (req, res) => {
   try {
     const lessonId = req.params.id;
 
-    const lesson = await db.get(
+    const lesson = await dbPromise.get(
       'SELECT video_url FROM lessons WHERE id = ?',
       [lessonId]
     );
 
     if (!lesson) {
-      return res.status(404).json({ error: 'Lesson not found' });
+      return sendError(res, 404, 'Lesson not found');
     }
 
     if (!lesson.video_url) {
-      return res.status(404).json({ error: 'No video to delete' });
+      return sendError(res, 404, 'No video to delete');
     }
 
     const filename = path.basename(lesson.video_url);
@@ -630,15 +616,15 @@ router.delete('/lessons/:id/video', isAdmin, async (req, res) => {
       console.error('Error deleting file:', err);
     }
 
-    await db.run(
+    await dbPromise.run(
       'UPDATE lessons SET video_url = NULL WHERE id = ?',
       [lessonId]
     );
 
-    res.json({ message: 'Video deleted successfully' });
+    return success(res, 200, null, 'Video deleted successfully');
   } catch (error) {
     console.error('Error deleting video:', error);
-    res.status(500).json({ error: 'Failed to delete video' });
+    return sendError(res, 500, 'Failed to delete video');
   }
 });
 
@@ -648,8 +634,8 @@ router.get('/assignments', (req, res) => {
   const sql = orgId ? 'SELECT * FROM assignments WHERE org_id = ? ORDER BY lesson_id, id' : 'SELECT * FROM assignments ORDER BY lesson_id, id';
   const params = orgId ? [orgId] : [];
   db.all(sql, params, (err, rows) => {
-    if (err) return res.status(500).json({ status: 'error', message: err.message });
-    res.json({ status: 'success', data: rows });
+    if (err) return sendError(res, 500, err.message);
+    return success(res, 200, rows);
   });
 });
 
@@ -659,23 +645,23 @@ router.get('/assignments/lesson/:lessonId', (req, res) => {
   const sql = orgId ? 'SELECT * FROM assignments WHERE lesson_id = ? AND org_id = ?' : 'SELECT * FROM assignments WHERE lesson_id = ?';
   const params = orgId ? [lessonId, orgId] : [lessonId];
   db.all(sql, params, (err, rows) => {
-    if (err) return res.status(500).json({ status: 'error', message: err.message });
-    res.json({ status: 'success', data: rows });
+    if (err) return sendError(res, 500, err.message);
+    return success(res, 200, rows);
   });
 });
 
 router.post('/assignments', requireAdmin, (req, res) => {
   const { lesson_id, title, instructions, due_date } = req.body;
   if (!lesson_id || !title || !instructions) {
-    return res.status(400).json({ status: 'error', message: 'Lesson ID, title, and instructions are required' });
+    return sendError(res, 400, 'Lesson ID, title, and instructions are required');
   }
   const stmt = db.prepare(`
     INSERT INTO assignments (lesson_id, title, instructions, due_date)
     VALUES (?, ?, ?, ?)
   `);
   stmt.run([lesson_id, title, instructions, due_date], function (err) {
-    if (err) return res.status(500).json({ status: 'error', message: err.message });
-    res.json({ status: 'success', id: this.lastID });
+    if (err) return sendError(res, 500, err.message);
+    return success(res, 200, { id: this.lastID });
   });
   stmt.finalize();
 });
@@ -688,16 +674,12 @@ async function upsertSubmission({ userId, lessonId, assignmentId, content }) {
   if (!userId) return { ok: false, code: 401, message: 'Not authenticated' };
   if (!content || String(content).trim().length < 10) return { ok: false, code: 400, message: 'Submission must be at least 10 characters' };
 
-  // Promise-wrapped helpers for sqlite3 (which uses callbacks)
-  const dbGetP = (sql, params) => new Promise((resolve, reject) => db.get(sql, params, (err, row) => err ? reject(err) : resolve(row)));
-  const dbRunP = (sql, params) => new Promise((resolve, reject) => db.run(sql, params, function (err) { if (err) return reject(err); resolve({ lastID: this.lastID, changes: this.changes }); }));
-
   // Prefer matching by assignment_id when provided, otherwise by lesson_id
   const whereClause = assignmentId ? 'assignment_id = ?' : 'lesson_id = ?';
   const whereParam = assignmentId || lessonId;
 
   try {
-    const existing = await dbGetP(
+    const existing = await dbPromise.get(
       `SELECT id, grade FROM submissions WHERE ${whereClause} AND user_id = ?`,
       [whereParam, userId]
     );
@@ -706,7 +688,7 @@ async function upsertSubmission({ userId, lessonId, assignmentId, content }) {
       if (existing.grade !== null && existing.grade !== undefined) {
         return { ok: false, code: 400, message: 'You have already submitted and been graded; resubmission not allowed' };
       }
-      await dbRunP(
+      await dbPromise.run(
         'UPDATE submissions SET content = ?, submitted_at = ?, feedback = NULL, grade = NULL WHERE id = ?',
         [String(content).trim(), new Date().toISOString(), existing.id]
       );
@@ -714,7 +696,7 @@ async function upsertSubmission({ userId, lessonId, assignmentId, content }) {
     }
 
     const insertSql = 'INSERT INTO submissions (lesson_id, assignment_id, user_id, content, submitted_at) VALUES (?, ?, ?, ?, ?)';
-    const res = await dbRunP(insertSql, [lessonId || null, assignmentId || null, userId, String(content).trim(), new Date().toISOString()]);
+    const res = await dbPromise.run(insertSql, [lessonId || null, assignmentId || null, userId, String(content).trim(), new Date().toISOString()]);
     return { ok: true, created: true, submissionId: res.lastID };
   } catch (err) {
     console.error('DB error in upsertSubmission:', err);
@@ -725,30 +707,30 @@ async function upsertSubmission({ userId, lessonId, assignmentId, content }) {
 // Legacy/shim: Submit assignment for a lesson (Student) - delegates to canonical /submissions
 router.post('/lessons/:id/submit', async (req, res) => {
   try {
-    if (!req.session || !req.session.user) return res.status(401).json({ error: 'Not authenticated' });
+    if (!req.session || !req.session.user) return sendError(res, 401, 'Not authenticated');
     const lessonId = Number(req.params.id);
     const { content } = req.body || {};
     const result = await upsertSubmission({ userId: req.session.user.id, lessonId, assignmentId: null, content });
-    if (!result.ok) return res.status(result.code || 400).json({ error: result.message });
-    res.json({ success: true, message: result.updated ? 'Submission updated successfully' : 'Assignment submitted successfully', submissionId: result.submissionId });
+    if (!result.ok) return sendError(res, result.code || 400, result.message);
+    return success(res, 200, { submissionId: result.submissionId }, result.updated ? 'Submission updated successfully' : 'Assignment submitted successfully');
   } catch (err) {
     console.error('Error submitting assignment (shim):', err);
-    res.status(500).json({ error: 'Failed to submit assignment' });
+    return sendError(res, 500, 'Failed to submit assignment');
   }
 });
 
 // Canonical submissions endpoint: create or update a submission (Student)
 router.post('/submissions', async (req, res) => {
   try {
-    if (!req.session || !req.session.user) return res.status(401).json({ error: 'Not authenticated' });
+    if (!req.session || !req.session.user) return sendError(res, 401, 'Not authenticated');
     const { lesson_id, assignment_id, content } = req.body || {};
-    if (!lesson_id && !assignment_id) return res.status(400).json({ error: 'lesson_id or assignment_id required' });
+    if (!lesson_id && !assignment_id) return sendError(res, 400, 'lesson_id or assignment_id required');
     const result = await upsertSubmission({ userId: req.session.user.id, lessonId: lesson_id ? Number(lesson_id) : null, assignmentId: assignment_id ? Number(assignment_id) : null, content });
-    if (!result.ok) return res.status(result.code || 400).json({ error: result.message });
-    res.json({ success: true, message: result.updated ? 'Submission updated successfully' : 'Assignment submitted successfully', submissionId: result.submissionId });
+    if (!result.ok) return sendError(res, result.code || 400, result.message);
+    return success(res, 200, { submissionId: result.submissionId }, result.updated ? 'Submission updated successfully' : 'Assignment submitted successfully');
   } catch (err) {
     console.error('Error in POST /submissions:', err);
-    res.status(500).json({ error: 'Failed to submit' });
+    return sendError(res, 500, 'Failed to submit');
   }
 });
 
@@ -756,13 +738,13 @@ router.post('/submissions', async (req, res) => {
 router.get('/lessons/:id/submission', async (req, res) => {
   try {
     if (!req.session || !req.session.user) {
-      return res.status(401).json({ error: 'Not authenticated' });
+      return sendError(res, 401, 'Not authenticated');
     }
 
     const lessonId = req.params.id;
     const userId = req.session.user.id;
 
-    const submission = await db.get(
+    const submission = await dbPromise.get(
       `SELECT 
         s.id,
         s.lesson_id,
@@ -778,10 +760,10 @@ router.get('/lessons/:id/submission', async (req, res) => {
     );
 
     if (!submission) {
-      return res.status(404).json({ error: 'No submission found' });
+      return sendError(res, 404, 'No submission found');
     }
 
-    res.json({
+    return success(res, 200, {
       submitted: true,
       graded: Boolean(submission.graded),
       grade: submission.grade,
@@ -791,14 +773,14 @@ router.get('/lessons/:id/submission', async (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching submission:', error);
-    res.status(500).json({ error: 'Failed to fetch submission' });
+    return sendError(res, 500, 'Failed to fetch submission');
   }
 });
 
 // Get all submissions for current user (Student Dashboard)
 router.get('/submissions/my', (req, res) => {
   if (!req.session || !req.session.user) {
-    return res.status(401).json({ error: 'Not authenticated' });
+    return sendError(res, 401, 'Not authenticated');
   }
   const userId = req.session.user.id;
   const sql = `SELECT 
@@ -818,9 +800,9 @@ router.get('/submissions/my', (req, res) => {
   db.all(sql, [userId], (err, rows) => {
     if (err) {
       console.error('Error fetching user submissions:', err);
-      return res.status(500).json({ error: 'Failed to fetch submissions' });
+      return sendError(res, 500, 'Failed to fetch submissions');
     }
-    res.json(Array.isArray(rows) ? rows : []);
+    return success(res, 200, Array.isArray(rows) ? rows : []);
   });
 });
 
@@ -849,9 +831,9 @@ router.get('/submissions', requireAdmin, (req, res) => {
     (err, submissions) => {
       if (err) {
         console.error('Error fetching all submissions:', err);
-        return res.status(500).json({ status: 'error', message: 'Failed to fetch submissions' });
+        return sendError(res, 500, 'Failed to fetch submissions');
       }
-      res.json({ status: 'success', data: submissions || [] });
+      return success(res, 200, submissions || []);
     }
   );
 });
@@ -859,11 +841,11 @@ router.get('/submissions', requireAdmin, (req, res) => {
 // --- Admin: User activity overview (submissions, visits) ---
 router.get('/admin/users/:id/activity', requireAdmin, async (req, res) => {
   const userId = req.params.id;
-  if (!userId) return res.status(400).json({ status: 'error', message: 'Invalid user ID' });
+  if (!userId) return sendError(res, 400, 'Invalid user ID');
 
   try {
     // Submissions for the user
-    const submissions = await db.all(
+    const submissions = await dbPromise.all(
       `SELECT 
         s.id,
         s.lesson_id,
@@ -881,24 +863,24 @@ router.get('/admin/users/:id/activity', requireAdmin, async (req, res) => {
     );
 
     // Visits by the user
-    const visits = await db.all(
+    const visits = await dbPromise.all(
       `SELECT id, path, visited_at FROM user_visits WHERE user_id = ? ORDER BY visited_at DESC`,
       [userId]
     );
 
-    res.json({ status: 'success', submissions, visits });
+    return success(res, 200, { submissions, visits });
   } catch (err) {
     console.error('GET /admin/users/:id/activity error:', err);
-    res.status(500).json({ status: 'error', message: 'Server error' });
+    return sendError(res, 500, 'Server error');
   }
 });
 
 // Get single submission (Admin)
 router.get('/submissions/:id', requireAdmin, async (req, res) => {
   const id = Number(req.params.id);
-  if (!id) return res.status(400).json({ status: 'error', message: 'Invalid submission id' });
+  if (!id) return sendError(res, 400, 'Invalid submission id');
   try {
-    const submission = await db.get(
+    const submission = await dbPromise.get(
       `SELECT s.*, u.username, u.email, l.week AS lesson_week, l.title AS lesson_title
        FROM submissions s
        LEFT JOIN users u ON s.user_id = u.id
@@ -906,51 +888,51 @@ router.get('/submissions/:id', requireAdmin, async (req, res) => {
        WHERE s.id = ?`,
       [id]
     );
-    if (!submission) return res.status(404).json({ status: 'error', message: 'Submission not found' });
-    res.json({ status: 'success', data: submission });
+    if (!submission) return sendError(res, 404, 'Submission not found');
+    return success(res, 200, submission);
   } catch (err) {
     console.error('GET /submissions/:id error:', err);
-    res.status(500).json({ status: 'error', message: 'Server error' });
+    return sendError(res, 500, 'Server error');
   }
 });
 
 // Grade or provide feedback for a submission (Admin)
 router.put('/submissions/:id/grade', requireAdmin, async (req, res) => {
   const id = Number(req.params.id);
-  if (!id) return res.status(400).json({ status: 'error', message: 'Invalid submission id' });
+  if (!id) return sendError(res, 400, 'Invalid submission id');
   const { grade, feedback } = req.body || {};
   if (grade === undefined || grade === null) {
-    return res.status(400).json({ status: 'error', message: 'Grade is required' });
+    return sendError(res, 400, 'Grade is required');
   }
   const numericGrade = Number(grade);
   if (isNaN(numericGrade) || numericGrade < 0 || numericGrade > 100) {
-    return res.status(400).json({ status: 'error', message: 'Grade must be a number between 0 and 100' });
+    return sendError(res, 400, 'Grade must be a number between 0 and 100');
   }
   try {
-    await db.run('UPDATE submissions SET grade = ?, feedback = ? WHERE id = ?', [numericGrade, feedback || null, id]);
+    await dbPromise.run('UPDATE submissions SET grade = ?, feedback = ? WHERE id = ?', [numericGrade, feedback || null, id]);
     // Optionally return updated submission
-    const updated = await db.get('SELECT * FROM submissions WHERE id = ?', [id]);
-    res.json({ status: 'success', message: 'Submission graded', data: updated });
+    const updated = await dbPromise.get('SELECT * FROM submissions WHERE id = ?', [id]);
+    return success(res, 200, updated, 'Submission graded');
   } catch (err) {
     console.error('PUT /submissions/:id/grade error:', err);
-    res.status(500).json({ status: 'error', message: 'Failed to grade submission' });
+    return sendError(res, 500, 'Failed to grade submission');
   }
 });
 
 // --- Admin token: issue or refresh ---
 router.post('/admin/token', (req, res) => {
   if (!req.session || !req.session.user || String(req.session.user.role).toLowerCase() !== 'admin') {
-    return res.status(403).json({ status: 'error', message: 'Admin access required' });
+    return sendError(res, 403, 'Admin access required');
   }
   const orgId = Number(req.body.orgId) || null;
   const scope = (req.body.scope || 'read').split(',').map(s => s.trim()).filter(Boolean);
   const ttl = Number(req.body.ttl) || 3600;
-  if(!orgId) return res.status(400).json({ status:'error', message:'orgId is required' });
+  if(!orgId) return sendError(res, 400, 'orgId is required');
   db.get('SELECT id, name, slug, status FROM organizations WHERE id = ?', [orgId], (err, org) => {
-    if(err) return res.status(500).json({ status:'error', message: err.message });
-    if(!org) return res.status(404).json({ status:'error', message:'Organization not found' });
+    if(err) return sendError(res, 500, err.message);
+    if(!org) return sendError(res, 404, 'Organization not found');
     const token = signToken({ org_id: org.id, org_slug: org.slug, scope }, ttl);
-    res.json({ status:'success', token, expires_in: ttl, link: `/org/access?token=${encodeURIComponent(token)}` });
+    return success(res, 200, { token, expires_in: ttl, link: `/org/access?token=${encodeURIComponent(token)}` });
   });
 });
 
@@ -984,20 +966,18 @@ function checkAIRateLimit(userId) {
 router.post('/ai/lesson-help', async (req, res) => {
   const user = req.session && req.session.user;
   if (!user) {
-    return res.status(401).json({ error: 'Please sign in to use AI assistance.' });
+    return sendError(res, 401, 'Please sign in to use AI assistance.');
   }
 
   // Rate limiting
   if (!checkAIRateLimit(user.id)) {
-    return res.status(429).json({ 
-      error: 'AI usage limit reached. You can ask 10 questions per hour. Please try again later.' 
-    });
+    return sendError(res, 429, 'AI usage limit reached. You can ask 10 questions per hour. Please try again later.');
   }
 
   const { lessonId, question } = req.body;
   
   if (!lessonId || !question || question.trim().length < 3) {
-    return res.status(400).json({ error: 'Please provide a valid lesson ID and question.' });
+    return sendError(res, 400, 'Please provide a valid lesson ID and question.');
   }
 
   // Sanitize question
@@ -1005,35 +985,32 @@ router.post('/ai/lesson-help', async (req, res) => {
 
   try {
     // Get lesson from database
-    const lesson = await db.get(
+    const lesson = await dbPromise.get(
       'SELECT id, week, title, description FROM lessons WHERE id = ?',
       [lessonId]
     );
 
     if (!lesson) {
-      return res.status(404).json({ error: 'Lesson not found.' });
+      return sendError(res, 404, 'Lesson not found.');
     }
 
     // Generate AI response
     const answer = await aiHelper.answerLessonQuestion(lesson, sanitizedQuestion);
 
     // Log AI usage
-    await db.run(
+    await dbPromise.run(
       `INSERT INTO ai_usage (user_id, org_id, type, question, response, created_at) 
        VALUES (?, ?, ?, ?, ?, datetime('now'))`,
       [user.id, req.session.org?.id || null, 'lesson-help', sanitizedQuestion, answer]
     );
 
-    res.json({ 
-      success: true, 
+    return success(res, 200, {
       answer,
       remainingQuestions: 10 - (aiUsageTracker.get(`ai_${user.id}`)?.count || 0)
     });
   } catch (error) {
     console.error('AI Lesson Help Error:', error);
-    res.status(500).json({ 
-      error: 'Unable to process your question. Please try again or contact your instructor.' 
-    });
+    return sendError(res, 500, 'Unable to process your question. Please try again or contact your instructor.');
   }
 });
 
@@ -1041,20 +1018,18 @@ router.post('/ai/lesson-help', async (req, res) => {
 router.post('/ai/admin-help', async (req, res) => {
   const user = req.session && req.session.user;
   if (!user || String(user.role).toLowerCase() !== 'admin') {
-    return res.status(403).json({ error: 'Admin access required.' });
+    return sendError(res, 403, 'Admin access required.');
   }
 
   // Rate limiting
   if (!checkAIRateLimit(user.id)) {
-    return res.status(429).json({ 
-      error: 'AI usage limit reached. You can ask 10 questions per hour.' 
-    });
+    return sendError(res, 429, 'AI usage limit reached. You can ask 10 questions per hour.');
   }
 
   const { question } = req.body;
   
   if (!question || question.trim().length < 3) {
-    return res.status(400).json({ error: 'Please provide a valid question.' });
+    return sendError(res, 400, 'Please provide a valid question.');
   }
 
   const sanitizedQuestion = sanitizeInput(question.substring(0, 500));
@@ -1074,22 +1049,19 @@ Platform Features:
     const answer = await aiHelper.answerAdminQuestion(sanitizedQuestion, docsContext);
 
     // Log AI usage
-    await db.run(
+    await dbPromise.run(
       `INSERT INTO ai_usage (user_id, org_id, type, question, response, created_at) 
        VALUES (?, ?, ?, ?, ?, datetime('now'))`,
       [user.id, req.session.org?.id || null, 'admin-help', sanitizedQuestion, answer]
     );
 
-    res.json({ 
-      success: true, 
+    return success(res, 200, {
       answer,
       remainingQuestions: 10 - (aiUsageTracker.get(`ai_${user.id}`)?.count || 0)
     });
   } catch (error) {
     console.error('AI Admin Help Error:', error);
-    res.status(500).json({ 
-      error: 'Unable to process your question. Please try again.' 
-    });
+    return sendError(res, 500, 'Unable to process your question. Please try again.');
   }
 });
 
@@ -1097,20 +1069,18 @@ Platform Features:
 router.post('/ai/assignment-feedback', async (req, res) => {
   const user = req.session && req.session.user;
   if (!user) {
-    return res.status(401).json({ error: 'Please sign in to use AI assistance.' });
+    return sendError(res, 401, 'Please sign in to use AI assistance.');
   }
 
   // Rate limiting
   if (!checkAIRateLimit(user.id)) {
-    return res.status(429).json({ 
-      error: 'AI usage limit reached. You can ask 10 questions per hour. Please try again later.' 
-    });
+    return sendError(res, 429, 'AI usage limit reached. You can ask 10 questions per hour. Please try again later.');
   }
 
   const { assignmentId, submission } = req.body;
   
   if (!assignmentId || !submission || submission.trim().length < 3) {
-    return res.status(400).json({ error: 'Please provide a valid assignment ID and submission content.' });
+    return sendError(res, 400, 'Please provide a valid assignment ID and submission content.');
   }
 
   // Sanitize submission
@@ -1118,28 +1088,25 @@ router.post('/ai/assignment-feedback', async (req, res) => {
 
   try {
     // Get submission data from database
-    const submissionData = await db.get(
+    const submissionData = await dbPromise.get(
       'SELECT id, assignment_id, user_id, content, file_path, submitted_at FROM submissions WHERE id = ?',
       [assignmentId]
     );
 
     if (!submissionData) {
-      return res.status(404).json({ error: 'Submission not found.' });
+      return sendError(res, 404, 'Submission not found.');
     }
 
     // Generate AI feedback
     const feedback = await aiHelper.provideAssignmentFeedback(submissionData, sanitizedSubmission);
 
-    res.json({ 
-      success: true, 
+    return success(res, 200, {
       feedback,
       remainingQuestions: 10 - (aiUsageTracker.get(`ai_${user.id}`)?.count || 0)
     });
   } catch (error) {
     console.error('AI Assignment Feedback Error:', error);
-    res.status(500).json({ 
-      error: 'Unable to process your submission. Please try again or contact your instructor.' 
-    });
+    return sendError(res, 500, 'Unable to process your submission. Please try again or contact your instructor.');
   }
 });
 
