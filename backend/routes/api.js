@@ -142,12 +142,26 @@ router.post('/signup', (req, res) => {
         return res.status(400).json({ status: 'error', message: errMsg });
       }
 
-      // Auto-login after signup
-      req.session.user = { id: this.lastID, username, email, role: 'User' };
-      res.json({
-        status: 'success',
-        message: 'Account created successfully! Welcome!',
-        user: { id: this.lastID, username, email, role: 'User' }
+      // Auto-login after signup — regenerate session to avoid fixation and
+      // ensure a fresh session cookie is issued (matches signin behavior).
+      const newUser = { id: this.lastID, username, email, role: 'User' };
+      req.session.regenerate((regenErr) => {
+        if (regenErr) {
+          console.error('Session regeneration error on signup:', regenErr);
+          // Still return success but warn client to sign in manually
+          return res.json({
+            status: 'success',
+            message: 'Account created, please sign in.',
+            user: newUser
+          });
+        }
+
+        req.session.user = newUser;
+        return res.json({
+          status: 'success',
+          message: 'Account created successfully! Welcome!',
+          user: newUser
+        });
       });
     });
     stmt.finalize();

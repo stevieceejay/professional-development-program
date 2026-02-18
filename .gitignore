@@ -80,3 +80,7 @@ coverage/
 *.cert
 *.p12
 *.pfx
+
+# Local git rewrite artifacts
+repo-mirror.git/
+*-bare.git/
