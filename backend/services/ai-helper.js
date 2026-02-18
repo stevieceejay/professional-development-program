@@ -7,6 +7,7 @@
  */
 
 const fetch = require('node-fetch');
+const aiContext = require('./ai-context');
 
 class AIHelper {
   constructor() {
@@ -107,14 +108,56 @@ class AIHelper {
    * @returns {Promise<string>} - AI tutor response
    */
   async answerLessonQuestion(lesson, studentQuestion) {
-    const prompt = `You are a helpful AI tutor for professional development training. A student is learning about: "${lesson.title}".
+    // Get enhanced context for this specific lesson
+    const lessonContext = await aiContext.getLessonContext(lesson.week);
+    const curriculumContext = await aiContext.getCurriculumContext();
+    
+    let contextInfo = `Week ${lesson.week}: ${lesson.title}\n\n`;
+    
+    if (lessonContext) {
+      contextInfo += `Full Lesson Details:\n${lessonContext.fullDescription}\n\n`;
+      
+      if (lessonContext.assignments && lessonContext.assignments.length > 0) {
+        contextInfo += `Related Assignments:\n`;
+        lessonContext.assignments.forEach(a => {
+          contextInfo += `- ${a.title}: ${a.instructions.substring(0, 150)}...\n`;
+        });
+        contextInfo += '\n';
+      }
+    }
+     (optional, will be auto-loaded)
+   * @returns {Promise<string>} - AI assistant response
+   */
+  async answerAdminQuestion(adminQuestion, docsContext = '') {
+    // Detect question topic and load relevant context
+    const topic = aiContext.detectQuestionTopic(adminQuestion);
+    const adminContext = await aiContext.getAdminContext(topic);
+    
+    // Use provided docs context or loaded context
+    const fullContext = docsContext || adminContext;
 
-Lesson Content:
-${lesson.description || ''}
+    const prompt = `You are a helpful AI assistant for platform administrators managing a 12-week professional development training platform.
 
-Student Question: ${studentQuestion}
+Platform Documentation:
+${fullContext}
 
-Provide a clear, encouraging answer that helps them understand the concept. Keep it under 150 words and be supportive.
+Admin Question: ${adminQuestion}
+
+Provide a clear, actionable answer that:
+1. Directly addresses their question
+2. Provides specific steps or API endpoints when relevant
+3. References the UI paths (Admin Dashboard → Section → Action)
+4. Includes any relevant warnings or best practices
+
+Keep it under 200 words and be precise
+
+Provide a clear, encouraging answer that:
+1. Directly addresses their question
+2. References specific lesson content when relevant
+3. Connects to broader career development goals
+4. Encourages them to apply what they're learning
+
+Keep it under 150 words and be supportive and actionable.
 
 Answer:`;
 
