@@ -87,7 +87,7 @@
         const data = await res.json();
 
         if (data.status === 'success') {
-          window.location.href = data.user.role === 'Admin' ? 'admin.html' : 'dashboard.html';
+          window.location.href = data.user.role === 'Admin' ? 'admin-dashboard.html' : 'dashboard.html';
         } else {
           document.getElementById('loginMessage').innerHTML = `<p class="msg error">${data.message}</p>`;
         }
