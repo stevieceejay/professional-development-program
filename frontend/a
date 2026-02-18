@@ -1,0 +1,91 @@
+const API_URL = '/api';
+
+// Fetch all lessons
+async function fetchLessons() {
+    try {
+        const response = await fetch(`${API_URL}/lessons`);
+        if (!response.ok) throw new Error('Failed to fetch lessons');
+        return await response.json();
+    } catch (error) {
+        console.error('Error fetching lessons:', error);
+        return [];
+    }
+}
+
+// Fetch assignments for a lesson
+async function fetchAssignments(lessonId) {
+    try {
+        const response = await fetch(`${API_URL}/lessons/${lessonId}/assignments`);
+        if (!response.ok) throw new Error('Failed to fetch assignments');
+        return await response.json();
+    } catch (error) {
+        console.error('Error fetching assignments:', error);
+        return [];
+    }
+}
+
+// Submit assignment
+async function submitAssignment(assignmentId, content) {
+    try {
+        const response = await fetch(`${API_URL}/submissions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ assignment_id: assignmentId, content })
+        });
+        if (!response.ok) throw new Error('Failed to submit assignment');
+        return await response.json();
+    } catch (error) {
+        console.error('Error submitting assignment:', error);
+        throw error;
+    }
+}
+
+// Login
+async function login(username, password) {
+    try {
+        const response = await fetch(`${API_URL}/signin`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password })
+        });
+        return await response.json();
+    } catch (error) {
+        console.error('Error logging in:', error);
+        throw error;
+    }
+}
+
+// Logout
+async function logout() {
+    try {
+        const response = await fetch(`${API_URL}/signout`, { method: 'POST' });
+        return await response.json();
+    } catch (error) {
+        console.error('Error logging out:', error);
+        throw error;
+    }
+}
+
+// Get current user
+async function getCurrentUser() {
+    try {
+        const response = await fetch(`${API_URL}/me`);
+        if (!response.ok) return null;
+        return await response.json();
+    } catch (error) {
+        console.error('Error getting current user:', error);
+        return null;
+    }
+}
+
+// Get user submissions
+async function getUserSubmissions() {
+    try {
+        const response = await fetch(`${API_URL}/submissions/my`);
+        if (!response.ok) throw new Error('Failed to fetch submissions');
+        return await response.json();
+    } catch (error) {
+        console.error('Error fetching submissions:', error);
+        return [];
+    }
+}

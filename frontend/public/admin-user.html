@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Admin: User Details | The Professional Development Project</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>The Professional Development Project</h1>
+    <nav class="navbar">
+      <a href="index.html">Home</a>
+      <a href="admin-dashboard.html">Admin</a>
+      <a href="dashboard.html">Dashboard</a>
+    </nav>
+  </header>
+
+  <main class="home-container">
+    <h2>User Details</h2>
+    <p id="userHeader">Loading user...</p>
+
+    <section style="margin-top:16px;">
+      <h3>Projects</h3>
+      <ul id="userProjects"></ul>
+    </section>
+
+    <section style="margin-top:16px;">
+      <h3>Activity Links</h3>
+      <ul id="userActivity"></ul>
+      <p class="muted">Links jump to lesson assignment sections.</p>
+    </section>
+
+    <section style="margin-top:16px;">
+      <h3>Visits (latest 500)</h3>
+      <table border="1" style="width:100%;border-collapse:collapse;">
+        <thead><tr><th>ID</th><th>Path</th><th>Timestamp</th></tr></thead>
+        <tbody id="userVisits"></tbody>
+      </table>
+    </section>
+
+    <section style="margin-top:16px;">
+      <h3>Submissions / Files</h3>
+      <table border="1" style="width:100%;border-collapse:collapse;">
+        <thead><tr><th>ID</th><th>Assignment</th><th>Submitted</th><th>Content Preview</th><th>File</th></tr></thead>
+        <tbody id="userSubmissions"></tbody>
+      </table>
+    </section>
+  </main>
+
+  <footer>
+    <p>&copy; 2025 The Professional Development Project</p>
+  </footer>
+
+  <script>
+    function getParam(name){
+      const u = new URL(window.location.href);
+      return u.searchParams.get(name);
+    }
+    async function loadUserDetails(){
+      const id = getParam('id');
+      const header = document.getElementById('userHeader');
+      if(!id){ header.textContent = 'Missing user id'; return; }
+      try{
+        const r = await fetch(`/api/admin/users/${encodeURIComponent(id)}/details`);
+        const d = await r.json();
+        if(d.status !== 'success'){ header.textContent = d.message || 'Failed to load user'; return; }
+        const { user, projects, visits, submissions, activity } = d.data || {};
+        header.textContent = user ? `${user.name || 'User'} (${user.email || ''}) • Role: ${user.role || ''} • Status: ${user.status || ''}` : 'User not found';
+        const projUl = document.getElementById('userProjects');
+        projUl.innerHTML = (projects||[]).length ? projects.map(p => `<li>${p.name} [${p.status||''}]</li>`).join('') : '<li>No projects found.</li>';
+        const actUl = document.getElementById('userActivity');
+        actUl.innerHTML = (activity||[]).length ? activity.map(a => {
+          const label = a.week ? `Week ${a.week}: ${a.lesson_title}` : a.lesson_title;
+          return `<li><a href="${a.href}">${label}</a></li>`;
+        }).join('') : '<li>No recent activity links.</li>';
+        const visitsTbody = document.getElementById('userVisits');
+        visitsTbody.innerHTML = (visits||[]).length ? visits.map(v => `<tr><td>${v.id}</td><td>${v.path||''}</td><td>${v.created_at||''}</td></tr>`).join('') : '<tr><td colspan="3">No visits found.</td></tr>';
+        const subsTbody = document.getElementById('userSubmissions');
+        subsTbody.innerHTML = (submissions||[]).length ? submissions.map(s => {
+          const preview = s.content ? s.content.substring(0,120) + (s.content.length>120?'…':'') : '';
+          const file = s.file_path ? `<a href="/${s.file_path}" target="_blank">Download</a>` : '';
+          const ts = s.submitted_at || '';
+          return `<tr><td>${s.id}</td><td>${s.assignment_id}</td><td>${ts}</td><td>${preview}</td><td>${file}</td></tr>`;
+        }).join('') : '<tr><td colspan="5">No submissions found.</td></tr>';
+      } catch(err){
+        header.textContent = 'Error loading user details';
+        console.error('User details failed', err);
+      }
+    }
+    document.addEventListener('DOMContentLoaded', loadUserDetails);
+  </script>
+  <footer style="margin-top: 3rem; padding: 1.5rem 0; border-top: 2px solid #ddd; text-align: center; color: #666; background: #f9f9f9;">
+    <p style="margin: 0.5rem 0; font-weight: bold;">&copy; 2026 Stephen. All Rights Reserved.</p>
+    <p style="margin: 0.5rem 0; font-size: 0.9em;">
+      This platform and all educational content are protected by copyright law.
+      <br>Unauthorized use, reproduction, or distribution is prohibited.
+    </p>
+  </footer>
+</body>
+</html>

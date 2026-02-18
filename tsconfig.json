@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "allowJs": true,
+    "checkJs": false,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "types": ["node", "express", "express-session"],
+    "baseUrl": "."
+  },
+  "include": [
+    "server.js",
+    "seed-user.js",
+    "backend/**/*.js",
+    "frontend/**/*.js"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}

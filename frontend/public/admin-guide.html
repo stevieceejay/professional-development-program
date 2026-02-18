@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Admin Guide | The Professional Development Project</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>Admin Guide</h1>
+    <nav class="navbar"></nav>
+  </header>
+
+    
+  <main class="home-container">
+    <h2>Operational Guide</h2>
+    <div id="readmeContainer" class="guide">
+      <p>Loading admin guide...</p>
+    </div>
+  </main>
+
+  <footer>
+    <p>&copy; 2025 The Professional Development Project</p>
+  </footer>
+
+  <script src="scripts.js"></script>
+  <script>
+    // Load README.md from server (protected endpoint) and render basic Markdown -> HTML.
+    (async function(){
+      try{
+        const s = await fetch('/api/session');
+        const sd = await s.json();
+        if (!(sd.status === 'success' && sd.data.role === 'Admin')){
+          window.location.href = 'dashboard.html';
+          return;
+        }
+
+        const res = await fetch('/api/admin/readme');
+        const body = await res.json();
+        if (body.status !== 'success') throw new Error(body.message || 'Failed to load readme');
+
+        // Server returned HTML rendered by marked; insert directly
+        const container = document.getElementById('readmeContainer');
+        container.innerHTML = body.content || '<p>No content</p>';
+      } catch (err){
+        console.error('Failed to load admin guide', err);
+        document.getElementById('readmeContainer').innerHTML = '<p>Error loading guide.</p>';
+      }
+    })();
+  </script>
+  <footer style="margin-top: 3rem; padding: 1.5rem 0; border-top: 2px solid #ddd; text-align: center; color: #666; background: #f9f9f9;">
+    <p style="margin: 0.5rem 0; font-weight: bold;">&copy; 2026 Stephen. All Rights Reserved.</p>
+    <p style="margin: 0.5rem 0; font-size: 0.9em;">
+      This platform and all educational content are protected by copyright law.
+      <br>Unauthorized use, reproduction, or distribution is prohibited.
+    </p>
+  </footer>
+</body>
+</html>
