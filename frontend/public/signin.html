@@ -91,7 +91,7 @@
           
           // Redirect based on user role
           setTimeout(() => {
-            window.location.href = data.user && String(data.user.role).toLowerCase() === 'admin' ? 'admin-dashboard.html' : 'dashboard.html';
+            window.location.href = data.data && data.data.user && String(data.data.user.role).toLowerCase() === 'admin' ? 'admin-dashboard.html' : 'dashboard.html';
           }, 1000);
         } else {
           messageDiv.textContent = data.error || 'Sign in failed';
