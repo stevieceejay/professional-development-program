@@ -84,7 +84,7 @@ function requireAdmin(req, res, next) {
     });
   }
   
-  if (req.session.user.role !== 'admin') {
+  if (String(req.session.user.role || '').toLowerCase() !== 'admin') {
     return res.status(403).json({ 
       status: 'error', 
       message: 'Admin access required' 

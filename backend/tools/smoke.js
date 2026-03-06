@@ -136,29 +136,50 @@ async function run() {
     }
   }
 
-  // Authenticated path: create temp user, sign in, verify session and submissions
+  // Authenticated path: sign in (or sign up) a test user, verify session and submissions
   if (AUTH) {
     try {
-      const uname = `smoke_${Date.now()}`;
-      const email = `${uname}@example.test`;
-      const password = 'SmokeTest123!';
       const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
-      // Signup (auto-login sets session)
-      const signup = await requestJSON(port, '/api/signup', {
-        method: 'POST',
-        body: { username: uname, email, password, confirmPassword: password },
-      });
-      expect(signup.json?.status === 'success', 'signup success');
-      console.log('- Signup OK');
-      if (!signup.headers || !signup.headers['set-cookie']) {
-        console.log('  (Note) No Set-Cookie header detected on signup response');
+      // If CI_USERNAME + CI_PASSWORD are supplied, sign in with the pre-seeded
+      // CI user instead of calling signup.  This avoids exhausting the 3/hr
+      // per-IP signup rate limiter when cutover:check is run repeatedly.
+      const ciUser = process.env.CI_USERNAME;
+      const ciPass = process.env.CI_PASSWORD;
+      const useSignin = !!(ciUser && ciPass);
+
+      let authCookie;
+      if (useSignin) {
+        console.log(`- Auth: signing in with pre-seeded CI user "${ciUser}"`);
+        const signin = await requestJSON(port, '/api/signin', {
+          method: 'POST',
+          body: { username: ciUser, password: ciPass },
+        });
+        expect(signin.json?.status === 'success', 'signin success');
+        console.log('- Signin OK');
+        const sc = signin.headers && signin.headers['set-cookie'];
+        authCookie = Array.isArray(sc) ? sc[0] : sc;
+      } else {
+        const uname = `smoke_${Date.now()}`;
+        const email = `${uname}@example.test`;
+        const password = 'SmokeTest123!';
+
+        // Signup (auto-login sets session)
+        const signup = await requestJSON(port, '/api/signup', {
+          method: 'POST',
+          body: { username: uname, email, password, confirmPassword: password },
+        });
+        expect(signup.json?.status === 'success', 'signup success');
+        console.log('- Signup OK');
+        if (!signup.headers || !signup.headers['set-cookie']) {
+          console.log('  (Note) No Set-Cookie header detected on signup response');
+        }
+        const sc = signup.headers && signup.headers['set-cookie'];
+        authCookie = Array.isArray(sc) ? sc[0] : sc;
       }
 
-      // Capture session cookie from signup response and reuse
-      const setCookie = signup.headers && signup.headers['set-cookie'];
-      const cookie = Array.isArray(setCookie) ? setCookie[0] : setCookie;
-      const sessionHeaders = cookie ? { Cookie: cookie } : {};
+      // Capture session cookie and reuse
+      const sessionHeaders = authCookie ? { Cookie: authCookie } : {};
 
       // Small delay before using new session cookie to avoid socket race
       await sleep(500);

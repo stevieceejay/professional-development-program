@@ -26,12 +26,14 @@ Proposed changes (high level)
 
 Checklist
 ---------
-- [ ] Add CI workflow
-- [ ] Add `response.js` helper and migrate endpoints
-- [ ] Add `db-promise.js` and migrate key routes
-- [ ] Harden `backend/server.js` CSP and cookie settings
-- [ ] Rebuild frontend assets and verify minified files
-- [ ] Run full smoke + E2E in CI
+- [x] Add CI workflow
+- [x] Add `response.js` helper and migrate endpoints
+- [x] Add `db-promise.js` and migrate key routes
+- [x] Harden `backend/server.js` CSP and cookie settings
+- [x] Rebuild frontend assets and verify minified files
+- [x] Run full smoke + E2E in CI
+- [x] Fix `smoke --auth` rate-limiter false failure: use signin (pre-seeded CI user) when `CI_USERNAME`/`CI_PASSWORD` set; update `cutover:check` to seed CI user before auth smoke
+- [x] Remove tracked junk files and add to `.gitignore`
 
 Notes
 -----

@@ -81,6 +81,13 @@ coverage/
 *.p12
 *.pfx
 
+# Local development artifacts
+lint_output.txt
+New.txt
+ci_signup.json
+/*.sql
+
 # Local git rewrite artifacts
 repo-mirror.git/
 *-bare.git/
+

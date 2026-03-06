@@ -16,10 +16,15 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "build:js": "terser ./frontend/public/scripts.js -o ./frontend/public/scripts.min.js -c -m",
-    "build:css": "cleancss -o ./frontend/public/style.min.css ./frontend/public/style.css",
-    "build:br": "npx brotli-cli compress --glob -q 11 ./frontend/public/*.min.js && npx brotli-cli compress --glob -q 11 ./frontend/public/*.min.css",
-    "build": "npm run build:js && npm run build:css && npm run build:br"
+    "build:js": "npx --yes terser ./frontend/public/scripts.js -o ./frontend/public/scripts.min.js -c -m",
+    "build:css": "npx --yes cleancss -o ./frontend/public/style.min.css ./frontend/public/style.css",
+    "build:br": "npx --yes brotli-cli compress --glob -q 11 ./frontend/public/*.min.js && npx --yes brotli-cli compress --glob -q 11 ./frontend/public/*.min.css",
+    "build": "npm run build:js && npm run build:css && npm run build:br",
+    "preflight:prod": "npm run build && npm run smoke -- --quick",
+    "risk:audit:prod": "npm audit --omit=dev --audit-level=high",
+    "cutover:print": "node tools/print-cutover.js",
+    "cutover:check": "node tools/cutover-check.js",
+    "seed:ci-user": "node tools/create_ci_user.js"
   },
   "keywords": [
     "express",
@@ -49,6 +54,10 @@
     "pino": "^10.1.1",
     "pino-http": "^11.0.0",
     "sqlite3": "^5.1.7"
+  },
+  "overrides": {
+    "tar": "7.5.10",
+    "@tootallnate/once": "3.0.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",

@@ -125,39 +125,24 @@ class AIHelper {
         contextInfo += '\n';
       }
     }
-     (optional, will be auto-loaded)
-   * @returns {Promise<string>} - AI assistant response
-   */
-  async answerAdminQuestion(adminQuestion, docsContext = '') {
-    // Detect question topic and load relevant context
-    const topic = aiContext.detectQuestionTopic(adminQuestion);
-    const adminContext = await aiContext.getAdminContext(topic);
-    
-    // Use provided docs context or loaded context
-    const fullContext = docsContext || adminContext;
 
-    const prompt = `You are a helpful AI assistant for platform administrators managing a 12-week professional development training platform.
+    if (curriculumContext && curriculumContext.overview) {
+      contextInfo += `Curriculum Overview:\n${curriculumContext.overview}\n\n`;
+    }
 
-Platform Documentation:
-${fullContext}
+    const prompt = `You are an encouraging AI tutor for a 12-week professional development course.
 
-Admin Question: ${adminQuestion}
+Lesson Context:
+${contextInfo}
 
-Provide a clear, actionable answer that:
-1. Directly addresses their question
-2. Provides specific steps or API endpoints when relevant
-3. References the UI paths (Admin Dashboard → Section → Action)
-4. Includes any relevant warnings or best practices
+Student Question: ${studentQuestion}
 
-Keep it under 200 words and be precise
+Provide a supportive answer that:
+1. Directly answers the question using lesson context
+2. Gives one practical next step the student can apply today
+3. Keeps tone positive and actionable
 
-Provide a clear, encouraging answer that:
-1. Directly addresses their question
-2. References specific lesson content when relevant
-3. Connects to broader career development goals
-4. Encourages them to apply what they're learning
-
-Keep it under 150 words and be supportive and actionable.
+Keep it under 150 words.
 
 Answer:`;
 

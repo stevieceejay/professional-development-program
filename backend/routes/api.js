@@ -379,24 +379,43 @@ router.get('/session', (req, res) => {
         return sendError(res, 403, 'Admin required');
       }
       const orgId = getSessionOrgId(req);
-      const { limit = 100, offset = 0, role, status, email, q } = req.query;
+      const { role, status, email, q } = req.query;
+      const rawLimit = Number.parseInt(String(req.query.limit ?? '100'), 10);
+      const rawOffset = Number.parseInt(String(req.query.offset ?? '0'), 10);
+      const safeLimit = Number.isFinite(rawLimit) ? Math.min(Math.max(rawLimit, 1), 200) : 100;
+      const safeOffset = Number.isFinite(rawOffset) ? Math.max(rawOffset, 0) : 0;
       const where = [];
       const params = [];
       if (orgId) { where.push('org_id = ?'); params.push(orgId); }
-      if (role) { where.push('role = ?'); params.push(role); }
-      if (status) { where.push('status = ?'); params.push(status); }
-      if (email) { where.push('email LIKE ?'); params.push(`%${email}%`); }
-      if (q) {
+      if (typeof role === 'string' && role.trim()) {
+        const normalizedRole = role.trim().toLowerCase();
+        if (!['admin', 'user'].includes(normalizedRole)) {
+          return sendError(res, 400, 'Invalid role filter');
+        }
+        where.push('LOWER(role) = ?');
+        params.push(normalizedRole);
+      }
+      if (typeof status === 'string' && status.trim()) {
+        const normalizedStatus = status.trim().toLowerCase().slice(0, 20);
+        where.push('LOWER(status) = ?');
+        params.push(normalizedStatus);
+      }
+      if (typeof email === 'string' && email.trim()) {
+        const emailLike = `%${email.trim().toLowerCase().slice(0, 120)}%`;
+        where.push('LOWER(email) LIKE ?');
+        params.push(emailLike);
+      }
+      if (typeof q === 'string' && q.trim()) {
         // Match first + last name, or either individually, plus email
         where.push(`(LOWER(COALESCE(first_name,'')) || ' ' || LOWER(COALESCE(last_name,'')) LIKE ? OR LOWER(first_name) LIKE ? OR LOWER(last_name) LIKE ? OR LOWER(email) LIKE ?)`);
-        const qLike = `%${String(q).toLowerCase()}%`;
+        const qLike = `%${q.trim().toLowerCase().slice(0, 120)}%`;
         params.push(qLike, qLike, qLike, qLike);
       }
       const whereSql = where.length ? 'WHERE ' + where.join(' AND ') : '';
       const sql = `SELECT id, COALESCE(first_name,'') as first_name, COALESCE(last_name,'') as last_name, email, org_id, role, status FROM users ${whereSql} ORDER BY id DESC LIMIT ? OFFSET ?`;
-      params.push(Number(limit));
-      params.push(Number(offset));
-      const rows = db.prepare(sql).all(...params);
+      params.push(safeLimit);
+      params.push(safeOffset);
+      const rows = await dbPromise.all(sql, params);
       const data = rows.map(r => ({
         id: r.id,
         first_name: r.first_name || '',
