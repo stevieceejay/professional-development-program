@@ -23,7 +23,8 @@
     "preflight:prod": "npm run build && npm run smoke -- --quick",
     "risk:audit:prod": "npm audit --omit=dev --audit-level=high",
     "cutover:print": "node tools/print-cutover.js",
-    "cutover:check": "node tools/cutover-check.js"
+    "cutover:check": "node tools/cutover-check.js",
+    "seed:ci-user": "node tools/create_ci_user.js"
   },
   "keywords": [
     "express",

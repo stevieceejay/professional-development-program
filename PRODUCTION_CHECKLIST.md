@@ -48,6 +48,8 @@
 - 2026-03-05: secret hygiene check `git check-ignore -v .env` ✅ PASS (`.env` ignored by `.gitignore`)
 - 2026-03-05: `npm audit --omit=dev --audit-level=high` ✅ PASS (`found 0 vulnerabilities`; RR-001 closed)
 - 2026-03-05: `npm run smoke -- --quick` ✅ PASS (post-remediation verification)
+- 2026-03-06: `smoke --auth` updated to sign in with pre-seeded CI user (via `CI_USERNAME`/`CI_PASSWORD`) rather than always calling `/api/signup`; `cutover:check` updated to seed CI user before auth smoke step — eliminates signup rate-limiter false failure ✅
+- 2026-03-06: Removed tracked junk files (`lint_output.txt`, `New.txt`, `ci_signup.json`, stray `.sql`) from repo; added entries to `.gitignore` ✅
 - Next scheduled review: 2026-03-12 (Thursday)
 
 ---

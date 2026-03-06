@@ -1,11 +1,12 @@
 const { spawnSync } = require('child_process');
 
-function runStep(label, args) {
+function runStep(label, args, extraEnv) {
   console.log(`\n==> ${label}`);
+  const env = extraEnv ? { ...process.env, ...extraEnv } : process.env;
   const npmExecPath = process.env.npm_execpath;
   const result = npmExecPath
-    ? spawnSync(process.execPath, [npmExecPath, ...args], { stdio: 'inherit', shell: false })
-    : spawnSync(process.platform === 'win32' ? 'npm.cmd' : 'npm', args, { stdio: 'inherit', shell: false });
+    ? spawnSync(process.execPath, [npmExecPath, ...args], { stdio: 'inherit', shell: false, env })
+    : spawnSync(process.platform === 'win32' ? 'npm.cmd' : 'npm', args, { stdio: 'inherit', shell: false, env });
   const code = typeof result.status === 'number' ? result.status : 1;
   return code;
 }
@@ -17,6 +18,19 @@ const preflightCode = runStep('Preflight (build + quick smoke)', ['run', 'prefli
 if (preflightCode !== 0) {
   console.error('\n✖ cutover:check failed at preflight');
   process.exit(preflightCode);
+}
+
+// Seed CI user before auth smoke so smoke:auth can sign in (not sign up),
+// avoiding the 3/hr per-IP signup rate limiter.
+const ciPassword = process.env.CI_PASSWORD;
+if (ciPassword) {
+  const seedCode = runStep('Seed CI user (pre-auth)', ['run', 'seed:ci-user']);
+  if (seedCode !== 0) {
+    console.error('\n✖ cutover:check failed at CI user seeding');
+    process.exit(seedCode);
+  }
+} else {
+  console.log('\n  (skip) CI_PASSWORD not set; skipping CI user seed — auth smoke will use signup fallback');
 }
 
 const authCode = runStep('Auth smoke', ['run', 'smoke:auth']);
