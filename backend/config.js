@@ -33,9 +33,23 @@ if (!["development", "production", "test"].includes(NODE_ENV)) {
 // Required variables
 const SESSION_SECRET = requireEnv("SESSION_SECRET");
 
+function isStrongSessionSecret(secret) {
+  if (typeof secret !== 'string') return false;
+  const value = secret.trim();
+  if (value.length < 32) return false;
+  const lower = value.toLowerCase();
+  const weakPatterns = ['change-me', 'changeme', 'default', 'secret', 'password', 'test'];
+  return !weakPatterns.some((pattern) => lower.includes(pattern));
+}
+
 // Production-specific validation
 if (IS_PRODUCTION && SESSION_SECRET === "change-me-please") {
   console.error(`❌ Production mode requires a secure SESSION_SECRET!`);
+  process.exit(1);
+}
+
+if (IS_PRODUCTION && !isStrongSessionSecret(SESSION_SECRET)) {
+  console.error('❌ Production SESSION_SECRET is too weak. Use a cryptographically random value (32+ chars).');
   process.exit(1);
 }
 

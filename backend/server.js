@@ -40,6 +40,7 @@ const SESSION_SECRET = config.sessionSecret;
 const PORT = config.port;
 
 const app = express();
+app.disable('x-powered-by');
 
 if (config.isProduction) {
   app.set('trust proxy', 1);
@@ -96,10 +97,12 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 app.use(session({
+  name: config.isProduction ? '__Host-pdp.sid' : 'pdp.sid',
   secret: SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
   proxy: config.isProduction,
+  unset: 'destroy',
   store: new SQLiteStore({
     db: 'sessions.db',
     dir: path.join(__dirname, 'data'),
@@ -108,7 +111,7 @@ app.use(session({
   cookie: { 
     secure: config.isProduction,  // true in production (HTTPS only), false in development
     httpOnly: true,
-    sameSite: 'lax',
+    sameSite: config.isProduction ? 'strict' : 'lax',
     maxAge: 24 * 60 * 60 * 1000 // 24 hours
   }
 }));
@@ -217,6 +220,11 @@ app.use('/api/submissions', uploadLimiter);
 app.use('/api/submissions/upload', uploadLimiter);
 app.use('/api', apiLimiter); // Apply to all other API routes
 
+// --- Health endpoint (must be before /api router mount) ---
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'success', uptime: process.uptime() });
+});
+
 // --- API routes ---
 app.use('/api', apiRouter);
 
@@ -241,11 +249,6 @@ app.use((err, req, res, next) => {
 app.get('/', (req, res) => res.redirect('/lessons'));
 app.get('/lessons', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'frontend', 'public', 'lessons.html'));
-});
-
-// --- Health endpoint ---
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'success', uptime: process.uptime() });
 });
 
 // --- Admin HTML guide route ---

@@ -4,6 +4,52 @@
 **Status**: Pre-Production Planning  
 **Target Deployment**: [Your Date]
 
+## Go-Live Security Gate (Run in Order)
+
+- [ ] 1) Set production environment values (never commit): `NODE_ENV=production`, strong `SESSION_SECRET` (32+ chars), `PORT`, `DB_PATH`, optional `SMTP_*`, optional `HUGGINGFACE_API_KEY`
+- [ ] 2) Confirm secret hygiene: `.env` is not tracked, GitHub Actions secrets configured, and prior leaked keys rotated
+- [ ] 3) Dependency risk check: `npm audit --omit=dev --audit-level=high` and document any temporary accepted risk with mitigation/owner/date
+- [ ] 4) Build optimized assets: `npm run build`
+- [ ] 5) Run smoke validation against production-like env: `npm run smoke -- --quick` then `npm run smoke:auth`
+- [ ] 6) Verify runtime security headers and cookies over HTTPS
+  - [ ] `Strict-Transport-Security` present
+  - [ ] session cookie uses `Secure`, `HttpOnly`, and `SameSite=Strict`
+  - [ ] `X-Content-Type-Options: nosniff` and `X-Frame-Options: DENY`
+- [ ] 7) Confirm admin-route protection with non-admin and admin test users
+- [ ] 8) Take and verify a backup restore test before launch
+
+### Residual Risk Register (as of 2026-03-05)
+
+| Risk ID | Area | Severity | Current State | Temporary Mitigation | Owner | Target Resolution |
+|---|---|---|---|---|---|---|
+| RR-001 | Production dependencies (`sqlite3` transitive chain: `node-gyp` → `make-fetch-happen`/`cacache` → `tar`, `@tootallnate/once`) | High | Resolved in current lockfile state; `npm audit --omit=dev --audit-level=high` returns `found 0 vulnerabilities` | Keep `overrides` in `package.json`, avoid `npm audit fix --force`, and re-run `npm audit` on each release candidate | Stephen C. Johnson (Platform Owner) | Closed 2026-03-05 |
+| RR-002 | Risk governance (temporary acceptance control) | Medium | Residual vulnerability acceptance needs explicit business/security sign-off and expiry tracking | Require dated sign-off (Approver, Date, Expiry), define rollback trigger criteria, and review status weekly until closed | Stephen C. Johnson (Risk Owner & Security Approver) | 2026-03-08 |
+
+#### Residual Risk Acceptance Approval
+
+- Approver Name/Role: Stephen C. Johnson (Platform Owner & Security Risk Approver)
+- Approval Date: 2026-03-05
+- Acceptance Expiry Date: 2026-03-26
+- Next Review Date: 2026-03-12
+- Review Cadence: Weekly (Thursday)
+- Scope of Acceptance: RR-002 only (RR-001 closed 2026-03-05)
+- Conditions to Revoke Acceptance (any one triggers action):
+  - New critical vulnerability in production dependency path
+  - Public exploit with practical impact to this stack
+  - Failed weekly review or missed target resolution date
+- Required Action on Revocation: freeze releases, apply remediation plan, re-run smoke + audit, and re-approve before deploy
+
+#### Go-Live Execution Log
+
+- 2026-03-05: `npm run preflight:prod` ✅ PASS (build + quick smoke)
+- 2026-03-05: `npm run smoke:auth` ✅ PASS (signup/session/submissions auth flow checks)
+- 2026-03-05: `npm run risk:audit:prod` ⚠️ EXIT 1 (initial state; RR-001 opened)
+- 2026-03-05: `npm run cutover:check` (strict mode) ❌ FAIL at auth smoke due `429` signup limiter (test artifact from repeated same-hour signups)
+- 2026-03-05: secret hygiene check `git check-ignore -v .env` ✅ PASS (`.env` ignored by `.gitignore`)
+- 2026-03-05: `npm audit --omit=dev --audit-level=high` ✅ PASS (`found 0 vulnerabilities`; RR-001 closed)
+- 2026-03-05: `npm run smoke -- --quick` ✅ PASS (post-remediation verification)
+- Next scheduled review: 2026-03-12 (Thursday)
+
 ---
 
 ## Phase 1: Security & Deployment (Week 1-2)
