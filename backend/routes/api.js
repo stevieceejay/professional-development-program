@@ -396,8 +396,8 @@ router.get('/session', (req, res) => {
       const sql = `SELECT id, COALESCE(first_name,'') as first_name, COALESCE(last_name,'') as last_name, email, org_id, role, status FROM users ${whereSql} ORDER BY id DESC LIMIT ? OFFSET ?`;
       params.push(Number(limit));
       params.push(Number(offset));
-      const rows = db.prepare(sql).all(...params);
-      const data = rows.map(r => ({
+      const rows = await dbPromise.all(sql, params);
+      const data = rows.filter(Boolean).map(r => ({
         id: r.id,
         first_name: r.first_name || '',
         last_name: r.last_name || '',

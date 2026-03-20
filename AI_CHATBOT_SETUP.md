@@ -32,7 +32,7 @@ Complete guide to enabling the AI Tutor and Admin Assistant features using Huggi
 3. **Name**: `Professional-Dev-Platform`
 4. **Type**: Select **"Read"** (sufficient for inference)
 5. Click **"Generate a token"**
-6. **Copy the token** - Looks like: `hf_aBcDeFgHiJkLmNoPqRsTuVwXyZ123456789`
+6. **Copy the token** - Looks like: `YOUR_HUGGINGFACE_TOKEN`
 7. **SAVE IT!** - You can't see it again
 
 ---
@@ -51,7 +51,7 @@ notepad .env
 
 **Add this line** (replace with YOUR actual token):
 ```env
-HUGGINGFACE_API_KEY=hf_aBcDeFgHiJkLmNoPqRsTuVwXyZ123456789
+HUGGINGFACE_API_KEY=YOUR_HUGGINGFACE_TOKEN
 ```
 
 **Save and close** notepad

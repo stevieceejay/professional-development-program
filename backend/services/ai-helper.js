@@ -125,15 +125,39 @@ class AIHelper {
         contextInfo += '\n';
       }
     }
-     (optional, will be auto-loaded)
+    if (curriculumContext) {
+      contextInfo += `Program Context:\n${curriculumContext.substring(0, 1200)}\n\n`;
+    }
+
+    const prompt = `You are a supportive AI tutor for a professional development training platform.
+
+Lesson Context:
+${contextInfo}
+
+Student Question: ${studentQuestion}
+
+Provide a clear, encouraging answer that:
+1. Directly answers the student's question
+2. References the lesson content when relevant
+3. Connects the topic to practical career development
+4. Suggests one concrete next step or reflection
+
+Keep it under 150 words and make it actionable.
+
+Answer:`;
+
+    return await this.generate(prompt, 250);
+  }
+
+  /**
+   * Help administrators navigate the platform
+   * @param {string} adminQuestion - The admin's question
+   * @param {string} docsContext - Relevant documentation snippets (optional)
    * @returns {Promise<string>} - AI assistant response
    */
   async answerAdminQuestion(adminQuestion, docsContext = '') {
-    // Detect question topic and load relevant context
     const topic = aiContext.detectQuestionTopic(adminQuestion);
     const adminContext = await aiContext.getAdminContext(topic);
-    
-    // Use provided docs context or loaded context
     const fullContext = docsContext || adminContext;
 
     const prompt = `You are a helpful AI assistant for platform administrators managing a 12-week professional development training platform.
@@ -144,38 +168,11 @@ ${fullContext}
 Admin Question: ${adminQuestion}
 
 Provide a clear, actionable answer that:
-1. Directly addresses their question
-2. Provides specific steps or API endpoints when relevant
-3. References the UI paths (Admin Dashboard → Section → Action)
-4. Includes any relevant warnings or best practices
+1. Directly addresses the question
+2. Includes specific steps or UI paths when relevant
+3. Notes important warnings or best practices
 
-Keep it under 200 words and be precise
-
-Provide a clear, encouraging answer that:
-1. Directly addresses their question
-2. References specific lesson content when relevant
-3. Connects to broader career development goals
-4. Encourages them to apply what they're learning
-
-Keep it under 150 words and be supportive and actionable.
-
-Answer:`;
-
-    return await this.generate(prompt, 250);
-  }
-
-  /**
-   * Help administrators navigate the platform
-   * @param {string} adminQuestion - The admin's question
-   * @param {string} docsContext - Relevant documentation snippets
-   * @returns {Promise<string>} - AI assistant response
-   */
-  async answerAdminQuestion(adminQuestion, docsContext = '') {
-    const prompt = `You are a helpful AI assistant for platform administrators. Answer questions about managing the Professional Development Project platform.
-
-${docsContext ? `Documentation Context:\n${docsContext}\n\n` : ''}Admin Question: ${adminQuestion}
-
-Provide a clear, step-by-step answer. If it involves specific actions, list them clearly. Keep it under 200 words.
+Keep it under 200 words and be precise.
 
 Answer:`;
 

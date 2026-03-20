@@ -23,7 +23,7 @@
 After deploying `main` to production:
 
 1. Go to: https://huggingface.co/settings/tokens
-2. Find token: `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` (or note its name)
+2. Find token: `<REDACTED_TOKEN>` (or note its name)
 3. Check:
    - Status: **Active** (green checkmark)
    - Quota: Requests remaining > 0 (free tier: 30K/month)

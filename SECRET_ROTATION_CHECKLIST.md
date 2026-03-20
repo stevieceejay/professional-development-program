@@ -68,7 +68,7 @@
    - Set scope to `read` (minimal)
    - Set expiration to `90 days`
    - Click `Generate a token`
-   - Copy token (looks like: `hf_aBcDeFgHiJkLmNoPqRsTuVwXyZ123456789`)
+   - Copy token (looks like: `YOUR_HUGGINGFACE_TOKEN`)
 
 2. **Test new token locally**:
    ```bash

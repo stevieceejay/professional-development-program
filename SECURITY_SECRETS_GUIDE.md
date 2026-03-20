@@ -10,7 +10,7 @@
 
 The GitHub Actions **gitleaks** workflow detected committed secrets in `.env`:
 - `SESSION_SECRET` (cryptographic session key)
-- `HUGGINGFACE_API_KEY=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` (active API token)
+- `HUGGINGFACE_API_KEY=<REDACTED_TOKEN>` (active API token)
 - `SMTP_PASS` (email credential)
 
 **Root Cause**: `.env` was committed to git history, exposing plaintext credentials to anyone with repository access.
@@ -21,7 +21,7 @@ The GitHub Actions **gitleaks** workflow detected committed secrets in `.env`:
 
 1. **Revoke the Hugging Face API Key immediately**
    - Go to: https://huggingface.co/settings/tokens
-   - Delete or revoke the token: `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`
+  - Delete or revoke the token: `<REDACTED_TOKEN>`
    - Generate a new token and update GitHub Actions secret
 
 2. **Regenerate SESSION_SECRET**

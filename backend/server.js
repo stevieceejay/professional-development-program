@@ -220,6 +220,11 @@ app.use('/api', apiLimiter); // Apply to all other API routes
 // --- API routes ---
 app.use('/api', apiRouter);
 
+// --- Health endpoint ---
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'success', uptime: process.uptime() });
+});
+
 // --- 404 handler ---
 app.use((req, res) => {
   res.status(404).json({ error: "Not found" });
@@ -241,11 +246,6 @@ app.use((err, req, res, next) => {
 app.get('/', (req, res) => res.redirect('/lessons'));
 app.get('/lessons', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'frontend', 'public', 'lessons.html'));
-});
-
-// --- Health endpoint ---
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'success', uptime: process.uptime() });
 });
 
 // --- Admin HTML guide route ---
