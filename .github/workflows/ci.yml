@@ -34,9 +34,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Seed sample data
-        run: npm run seed:sample
-
       - name: Build frontend assets
         run: npm run build
 
@@ -57,6 +54,9 @@ jobs:
           echo "Server failed to start in time"
           tail -n 200 server.log || true
           exit 1
+
+      - name: Seed sample data
+        run: npm run seed:sample
 
       - name: Run smoke tests
         run: npm run smoke -- --port="${PORT}"
