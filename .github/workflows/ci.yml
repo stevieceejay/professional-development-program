@@ -34,6 +34,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Initialize database schema
+        run: node -e "require('./backend/data/db')"
+
       - name: Populate curriculum data
         run: python3 backend/populate_all_12_weeks.py
 
