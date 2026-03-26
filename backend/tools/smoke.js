@@ -27,6 +27,9 @@ function requestJSON(port, path, opts = {}) {
     const headers = {
       'Content-Type': opts.form ? 'application/x-www-form-urlencoded' : 'application/json',
       'Connection': 'close',
+      // When running auth smoke against a production server (trust proxy enabled),
+      // simulate the Nginx-added header so secure session cookies are issued over HTTP.
+      ...(AUTH ? { 'X-Forwarded-Proto': 'https' } : {}),
       ...(opts.headers || {}),
     };
     const req = http.request({ hostname: host, port, path, method, headers }, (res) => {
