@@ -785,7 +785,7 @@ router.get('/submissions/my', (req, res) => {
   const userId = req.session.user.id;
   const sql = `SELECT 
         s.id,
-        s.lesson_id,
+        s.assignment_id,
         s.content,
         s.submitted_at,
         s.grade,
@@ -794,7 +794,8 @@ router.get('/submissions/my', (req, res) => {
         l.title as lesson_title,
         CASE WHEN s.grade IS NOT NULL THEN 1 ELSE 0 END as graded
       FROM submissions s
-      LEFT JOIN lessons l ON l.id = s.lesson_id
+      LEFT JOIN assignments a ON a.id = s.assignment_id
+      LEFT JOIN lessons l ON l.id = a.lesson_id
       WHERE s.user_id = ?
       ORDER BY l.week ASC`;
   db.all(sql, [userId], (err, rows) => {
