@@ -2,49 +2,107 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Login Demo</title>
-  <link rel="stylesheet" href="/styles.css">
+  <title>Login | The Professional Development Project</title>
+  <link rel="stylesheet" href="style.css">
 </head>
-<body>
-  <h1>Nonprofit Integration Demo</h1>
-
-  <!-- Navigation Bar -->
-  <nav>
-    <ul>
-      <li><a href="/index.html">Home</a></li>
-      <li><a href="/login.html">Login</a></li>
-      <li><a href="/dashboard.html">Dashboard</a></li>
-      <li><a href="/admin.html">Admin</a></li>
-    </ul>
+<body class="login-theme">
+  <!-- Shared Header -->
+  <header>
+  <h1>The Professional Development Project</h1>
+  <p class="tagline">Grow your skills, adapt, and thrive 🚀</p>
+  <nav class="navbar">
+    <div class="search-bar">
+      <input type="search" id="globalSearch" placeholder="Search terms, pages, weeks…" aria-label="Search site" />
+      <button class="btn btn-primary" id="globalSearchBtn">Search</button>
+    </div>
+    <a href="index.html">Home</a>
+    <a href="signin.html">Sign In</a>
+    <a href="signup.html">Sign Up</a>
+    <a href="dashboard.html">Dashboard</a>
+    <a href="admin.html">Admin</a>
   </nav>
+</header>
 
-  <!-- Login Section -->
-  <div class="login-box">
-    <h2>Login</h2>
-    <form onsubmit="event.preventDefault(); loginUser();">
-      <div class="form-group">
-        <label for="username">Username</label>
-        <input id="username" type="text" placeholder="Enter username" required>
+  <!-- Main Content -->
+    
+        <h3>Grow Your Skills 📚</h3>
+        <p>Professional development starts here.<br>
+        Learn, adapt, and thrive with every login.</p>
       </div>
-      <div class="form-group">
-        <label for="password">Password</label>
-        <input id="password" type="password" placeholder="Enter password" required>
-      </div>
-      <button type="submit">Login</button>
-    </form>
-  </div>
 
-  <!-- Output -->
-  <div id="output">Login response will appear here...</div>
+      <!-- Right side -->
+      <section>
+        <div class="login-form">
+          <div class="login-header">
+            <img src="user-icon.png" alt="User Icon" class="user-icon">
+            <h2>USER LOGIN</h2>
+          </div>
+          <form id="loginForm">
+            <div class="input-group">
+              <label for="username">Username</label>
+              <input type="text" id="username" required>
+            </div>
 
-  <!-- ✅ Shared script goes here -->
-  <script src="/script.js"></script>
+            <div class="input-group">
+              <label for="password">Password</label>
+              <input type="password" id="password" required>
+            </div>
+
+            <div class="options">
+              <label><input type="checkbox"> Remember me</label>
+              <a href="#">Forgot password?</a>
+            </div>
+
+            <p style="text-align:center; margin-top:10px;">
+              <a href="index.html">← Back to Home</a>
+            </p>
+
+            <button type="submit">LOGIN</button>
+            <div id="loginMessage"></div>
+          </form>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- Shared Footer -->
+  <footer class="site-footer">
+    <p class="bold">&copy; 2025 The Professional Development Project</p>
+  </footer>
+
+  <!-- Scripts -->
+  <link rel="stylesheet" href="extracted-styles.css">
   <script>
-    function loginUser() {
+    document.getElementById('loginForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
       const username = document.getElementById('username').value;
       const password = document.getElementById('password').value;
-      callRoute('/api/login', 'POST', { username, password });
-    }
+
+      try {
+        const res = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+        const data = await res.json();
+
+        if (data.status === 'success') {
+          window.location.href = data.data && data.data.user && data.data.user.role === 'Admin' ? 'admin-dashboard.html' : 'dashboard.html';
+        } else {
+          document.getElementById('loginMessage').innerHTML = `<p class="msg error">${data.message}</p>`;
+        }
+      } catch (err) {
+        document.getElementById('loginMessage').innerHTML = `<p class="msg error">Error: ${err.message}</p>`;
+      }
+    });
   </script>
+  <script src="login.js"></script>
+  <footer style="margin-top: 3rem; padding: 1.5rem 0; border-top: 2px solid #ddd; text-align: center; color: #666; background: #f9f9f9;">
+    <p style="margin: 0.5rem 0; font-weight: bold;">&copy; 2026 Stephen. All Rights Reserved.</p>
+    <p style="margin: 0.5rem 0; font-size: 0.9em;">
+      This platform and all educational content are protected by copyright law.
+      <br>Unauthorized use, reproduction, or distribution is prohibited.
+    </p>
+  </footer>
 </body>
 </html>

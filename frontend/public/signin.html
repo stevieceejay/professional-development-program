@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign In - Professional Development</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="extracted-styles.css">
+</head>
+<body>
+  <header>
+    <nav class="navbar">
+      <a href="index.html">Home</a>
+      <a href="signin.html" class="active">Sign In</a>
+      <a href="signup.html">Sign Up</a>
+      <a href="dashboard.html">Dashboard</a>
+      <a href="lessons.html">Lessons</a>
+      <a href="admin.html">Admin</a>
+    </nav>
+  </header>
+
+  <div class="auth-container">
+    <div class="auth-card">
+      <h1>Sign In</h1>
+      <p>Welcome back! Sign in to continue your professional development journey.</p>
+      
+      <form id="signinForm">
+        <div class="form-group">
+          <label for="username">Username</label>
+          <input 
+            type="text" 
+            id="username" 
+            name="username" 
+            required 
+            placeholder="Enter your username"
+            autocomplete="username"
+          >
+        </div>
+
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input 
+            type="password" 
+            id="password" 
+            name="password" 
+            required 
+            placeholder="Enter your password"
+            autocomplete="current-password"
+          >
+        </div>
+
+        <button type="submit" class="btn btn-primary">Sign In</button>
+      </form>
+
+      <div id="message" class="message"></div>
+
+      <p class="centered">Don't have an account? <a href="signup.html">Sign Up</a></p>
+    </div>
+  </div>
+
+  <!-- Copyright Footer -->
+  <footer class="site-footer">
+    <p class="bold">&copy; 2026 Stephen. All Rights Reserved.</p>
+    <p>Proprietary Software - All Rights Reserved</p>
+  </footer>
+
+  <script>
+    const form = document.getElementById('signinForm');
+    const messageDiv = document.getElementById('message');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const username = document.getElementById('username').value;
+      const password = document.getElementById('password').value;
+
+      try {
+        const response = await fetch('/api/signin', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ username, password })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          messageDiv.textContent = 'Sign in successful! Redirecting...';
+          messageDiv.className = 'message success';
+          
+          // Redirect based on user role
+          setTimeout(() => {
+            window.location.href = data.data && data.data.user && String(data.data.user.role).toLowerCase() === 'admin' ? 'admin-dashboard.html' : 'dashboard.html';
+          }, 1000);
+        } else {
+          messageDiv.textContent = data.error || 'Sign in failed';
+          messageDiv.className = 'message error';
+        }
+      } catch (error) {
+        console.error('Sign in error:', error);
+        messageDiv.textContent = 'An error occurred during sign in';
+        messageDiv.className = 'message error';
+      }
+    });
+  </script>
+</body>
+</html>

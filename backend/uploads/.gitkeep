@@ -1,0 +1,6 @@
+# This directory stores user uploads
+# The directory structure is created automatically:
+# - uploads/{userId}/filename.ext
+# 
+# This .gitkeep file ensures the uploads directory exists in git
+# while the actual upload content is ignored via .gitignore

@@ -1,61 +1,73 @@
+  <main>
+    <div class="container">
+      
+    </div>
+  </main>
+  <script src="scripts.js?v=3"></script>
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Dashboard Demo</title>
-  <link rel="stylesheet" href="/styles.css">
-  <style>
-    body { font-family: Arial, sans-serif; margin: 40px; background: #f4f6f8; color: #333; }
-    h1 { text-align: center; margin-bottom: 30px; }
-    nav { background: #0078d7; padding: 10px; margin-bottom: 20px; }
-    nav ul { list-style: none; display: flex; justify-content: center; gap: 20px; margin: 0; padding: 0; }
-    nav a { color: white; text-decoration: none; font-weight: bold; }
-    nav a:hover { text-decoration: underline; }
-    .section { max-width: 600px; margin: 20px auto; padding: 20px; background: #fff; border: 1px solid #ccc; border-radius: 8px; }
-    .section h2 { margin-top: 0; color: #0078d7; }
-    .button-container { display: flex; gap: 15px; margin-top: 10px; }
-    button { padding: 10px 20px; font-size: 15px; border: none; border-radius: 5px; cursor: pointer; background-color: #0078d7; color: white; transition: background-color 0.3s ease; }
-    button:hover { background-color: #005a9e; }
-    #output { max-width: 800px; margin: 20px auto; padding: 20px; background: #fff; border: 1px solid #ccc; border-radius: 5px; }
-    #output table { width: 100%; border-collapse: collapse; }
-    #output th, #output td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-    #output th { background: #f0f4f8; color: #333; }
-    #output tr:nth-child(even) { background-color: #f9fbfd; }
-  </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Project Dashboard</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <h1>Nonprofit Integration Demo</h1>
+  <section>
+      <h1>Welcome to The Professional Development Project</h1>
+    <p><a href="signin.html">Sign In</a></p>
+    <p><a href="dashboard.html">Dashboard</a></p>
+    <p><a href="lessons.html">Lessons</a></p>
+    <p><a href="admin.html">Admin</a></p>
+  </section>
 
-  <!-- Navigation Bar -->
-  <nav>
-    <ul>
-      <li><a href="/index.html">Home</a></li>
-      <li><a href="/login.html">Login</a></li>
-      <li><a href="/dashboard.html">Dashboard</a></li>
-      <li><a href="/admin.html">Admin</a></li>
-    </ul>
-  </nav>
-
+  <section>
+  <!-- Navigation -->
+    <header>
+    <h1>The Professional Development Project</h1>
+    <p class="tagline">Grow your skills, adapt, and thrive 🚀</p>
+    <nav class="navbar">
+      <a href="index.html">Home</a>
+      <a href="signin.html">Sign In</a>
+      <a href="signup.html">Sign Up</a>
+      <a href="dashboard.html">Dashboard</a>
+      <a href="lessons.html">Lessons</a>
+      <a href="admin.html">Admin</a>
+    </nav>
+    
+  </section>
   <!-- Dashboard Section -->
-  <div class="section">
-    <h2>Dashboard</h2>
-    <div class="button-container">
-      <button onclick="callRoute('/api/dashboard')">View Dashboard</button>
+  <section id="dashboard">
+    <h2>Project Dashboard</h2>
+    <p>Below are the current projects pulled live from the database.</p>
+    <div id="projectsOutput">Loading projects...</div>
+    <button onclick="loadProjects()">Reload Projects</button>
+    <div style="margin-top:16px;">
+      <a href="/lessons" style="display:inline-block;padding:10px 14px;border-radius:6px;background:#2c7be5;color:#fff;text-decoration:none;">View Lessons (Videos)</a>
     </div>
-  </div>
+  </section>
 
   <!-- Admin Section -->
-  <div class="section" id="admin">
-    <h2>Admin</h2>
-    <div class="button-container">
-      <button onclick="callRoute('/api/admin')">View Admin</button>
-    </div>
-  </div>
+  <section id="admin">
+    <h2>User Administration</h2>
+    <p>Below are the current users pulled live from the database.</p>
+    <div id="usersOutput">Loading users...</div>
+    <button onclick="loadUsers()">Reload Users</button>
+  </section>
 
-  <!-- Output -->
-  <div id="output">Click a button to see results here...</div>
+  <!-- Scripts -->
+  <script src="scripts.js"></script>
 
-  <!-- Shared script at the bottom -->
-  <script src="/script.js"></script>
+  <!-- Copyright Footer -->
+  <footer style="margin-top: 3rem; padding: 1.5rem 0; border-top: 2px solid #ddd; text-align: center; color: #666; background: #f9f9f9;">
+    <p style="margin: 0.5rem 0; font-weight: bold;">&copy; 2026 Stephen. All Rights Reserved.</p>
+    <p style="margin: 0.5rem 0; font-size: 0.9em;">
+      This platform and all educational content are protected by copyright law.
+      <br>Unauthorized use, reproduction, or distribution is prohibited.
+    </p>
+    <p style="margin: 0.5rem 0; font-size: 0.85em; color: #999;">
+      Professional Development Project platform | Proprietary Software
+    </p>
+  </footer>
 </body>
 </html>

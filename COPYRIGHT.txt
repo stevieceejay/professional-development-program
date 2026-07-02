@@ -1,0 +1,58 @@
+PROFESSIONAL DEVELOPMENT PROJECT PLATFORM
+Copyright © 2026 Stephen. All Rights Reserved.
+
+EDUCATIONAL CONTENT COPYRIGHT
+================================================================================
+All educational materials, including but not limited to:
+- Video lessons and presentations
+- Written curriculum and lesson plans
+- Assignments and assessment materials
+- Training methodologies and frameworks
+- Course structure and organization
+- Documentation and guides
+
+Are original works protected by United States and international copyright laws.
+
+SOFTWARE COPYRIGHT
+================================================================================
+The Professional Development Project platform software, including but not limited to:
+- Source code and scripts
+- Database structures and schemas
+- User interface designs
+- Custom algorithms and features
+- Documentation and technical materials
+- Configuration files and utilities
+
+Is proprietary software protected by United States and international copyright laws.
+
+RESTRICTIONS
+================================================================================
+Without explicit written permission, you may not:
+- Copy, reproduce, or distribute any part of this work
+- Modify, adapt, or create derivative works
+- Publicly display or perform the content
+- Use the materials for commercial purposes
+- Remove or alter copyright notices
+- Reverse engineer the software
+- Share access credentials or tokens
+
+LICENSE GRANTS
+================================================================================
+Organizations may obtain limited licenses through official access tokens.
+Individual licenses are granted on a per-user, per-organization basis.
+All licenses are non-transferable and subject to terms of service.
+
+ENFORCEMENT
+================================================================================
+Unauthorized use, reproduction, or distribution may result in severe civil 
+and criminal penalties, and will be prosecuted to the maximum extent possible 
+under applicable law.
+
+CONTACT
+================================================================================
+For licensing inquiries or permissions, contact:
+Email: stephenjohnson118120@gmail.com
+Website: [Website to be added]
+
+This copyright notice must remain intact and visible in all copies or 
+substantial portions of the Software and Content.
